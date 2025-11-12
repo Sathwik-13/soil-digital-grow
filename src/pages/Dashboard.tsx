@@ -6,6 +6,7 @@ import { Download, Droplets, Thermometer, Wind, Sun } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import SoilAIChat from "@/components/SoilAIChat";
+import VirtualField3D from "@/components/VirtualField3D";
 
 interface SensorData {
   timestamp: string;
@@ -218,8 +219,23 @@ const Dashboard = () => {
 
         <Card className="border-2">
           <CardHeader>
-            <CardTitle>🌾 Virtual Field Effect Analysis</CardTitle>
-            <CardDescription>Real-time impact of current environmental conditions</CardDescription>
+            <CardTitle>🌾 3D Virtual Field Visualization</CardTitle>
+            <CardDescription>Interactive 3D field showing real-time environmental effects - Drag to rotate, scroll to zoom</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VirtualField3D
+              moisture={moisture}
+              temperature={temperature}
+              soilPh={soilPh}
+              lightIntensity={lightIntensity}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="border-2">
+          <CardHeader>
+            <CardTitle>📊 Field Effect Analysis</CardTitle>
+            <CardDescription>Real-time impact summary of current environmental conditions</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-3">
