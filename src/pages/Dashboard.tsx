@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { Download, Droplets, Thermometer, Wind, Sun } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
+import SoilAIChat from "@/components/SoilAIChat";
 
 interface SensorData {
   timestamp: string;
@@ -231,6 +232,8 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      <SoilAIChat />
     </div>
   );
 };
