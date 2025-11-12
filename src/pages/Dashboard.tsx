@@ -7,6 +7,8 @@ import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
 import SoilAIChat from "@/components/SoilAIChat";
 import VirtualField3D from "@/components/VirtualField3D";
+import NutrientAnalysis from "@/components/NutrientAnalysis";
+import PestDetection from "@/components/PestDetection";
 
 interface SensorData {
   timestamp: string;
@@ -104,7 +106,7 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -228,6 +230,7 @@ const Dashboard = () => {
               temperature={temperature}
               soilPh={soilPh}
               lightIntensity={lightIntensity}
+              humidity={humidity}
             />
           </CardContent>
         </Card>
