@@ -6,7 +6,7 @@ const Index = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-b from-[hsl(var(--gradient-sky))] via-background to-background">
       <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center space-y-8">
         <div className="space-y-4 max-w-3xl">
           <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
