@@ -29,16 +29,26 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are an expert agricultural AI analyzing field photos. Analyze the image and provide:
-1. A health score (0-100)
-2. 3-5 key findings about crop health, soil condition, pest presence, disease signs
-3. 3-5 actionable recommendations
+            content: `You are an expert agricultural AI analyzing field photos with precision and detail. 
 
-Respond in JSON format:
+CRITICAL INSTRUCTIONS:
+- Carefully examine EVERY aspect of the image: plant color, leaf condition, soil texture, moisture levels, spacing, growth patterns
+- Provide SPECIFIC observations based on what you actually see in the image
+- Health scores must reflect the actual condition: healthy fields = 75-95, moderate issues = 50-74, poor condition = 20-49, severe problems = 0-19
+- DO NOT provide generic responses - each analysis must be unique to the image
+- Look for: leaf discoloration (yellowing, browning, spots), wilting, pest damage, uneven growth, soil quality, water stress, nutrient deficiencies
+- Be honest about what you observe - if the field looks healthy, say so; if there are problems, identify them specifically
+
+Analyze the image and provide:
+1. A precise health score (0-100) based on actual observations
+2. 3-5 specific findings about what you see: crop health, soil condition, pest presence, disease signs, water stress, nutrient issues
+3. 3-5 actionable recommendations tailored to the specific issues or conditions observed
+
+Respond ONLY in valid JSON format:
 {
   "healthScore": number,
-  "findings": ["finding1", "finding2", ...],
-  "recommendations": ["rec1", "rec2", ...]
+  "findings": ["specific finding 1", "specific finding 2", ...],
+  "recommendations": ["specific recommendation 1", "specific recommendation 2", ...]
 }`,
           },
           {
