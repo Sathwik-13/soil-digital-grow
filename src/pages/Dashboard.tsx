@@ -9,6 +9,8 @@ import SoilAIChat from "@/components/SoilAIChat";
 import VirtualField3D from "@/components/VirtualField3D";
 import NutrientAnalysis from "@/components/NutrientAnalysis";
 import PestDetection from "@/components/PestDetection";
+import YieldPrediction from "@/components/YieldPrediction";
+import FieldPhotoAnalysis from "@/components/FieldPhotoAnalysis";
 
 interface SensorData {
   timestamp: string;
@@ -27,6 +29,9 @@ const Dashboard = () => {
   const [soilPh, setSoilPh] = useState(6.5);
   const [lightIntensity, setLightIntensity] = useState(70);
   const [dataLog, setDataLog] = useState<SensorData[]>([]);
+  const [nitrogen, setNitrogen] = useState(65);
+  const [phosphorus, setPhosphorus] = useState(70);
+  const [potassium, setPotassium] = useState(60);
 
   // Simulate Bangalore climate variations
   useEffect(() => {
@@ -93,7 +98,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
           <div>
@@ -250,6 +255,19 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <YieldPrediction
+            moisture={moisture}
+            temperature={temperature}
+            soilPh={soilPh}
+            lightIntensity={lightIntensity}
+            nitrogen={nitrogen}
+            phosphorus={phosphorus}
+            potassium={potassium}
+          />
+          <FieldPhotoAnalysis />
+        </div>
       </div>
 
       <SoilAIChat />
