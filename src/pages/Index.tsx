@@ -44,14 +44,9 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="flex gap-4">
-          <Button onClick={() => navigate("/dashboard")} size="lg" className="text-lg px-8 py-6">
-            Launch Dashboard
-          </Button>
-          <Button onClick={() => navigate("/agricultural")} size="lg" variant="secondary" className="text-lg px-8 py-6">
-            Agricultural Intelligence
-          </Button>
-        </div>
+        <Button onClick={() => navigate("/dashboard")} size="lg" className="text-lg px-8 py-6">
+          Launch Dashboard
+        </Button>
       </div>
     </div>
   );
