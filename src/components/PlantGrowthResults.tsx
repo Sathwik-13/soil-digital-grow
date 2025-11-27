@@ -18,6 +18,7 @@ interface GrowthSnapshot {
   health: number;
   height: number;
   image: string;
+  weekNumber: number;
 }
 
 const PlantGrowthResults = ({ 
@@ -96,7 +97,6 @@ const PlantGrowthResults = ({
     ctx.font = "bold 14px Arial";
     ctx.fillText(`Health: ${health.toFixed(0)}%`, 10, 20);
     ctx.fillText(`Height: ${height.toFixed(0)}cm`, 10, 40);
-    ctx.fillText(`Time: ${new Date().toLocaleString()}`, 10, 60);
 
     return canvas.toDataURL("image/png");
   };
@@ -108,7 +108,8 @@ const PlantGrowthResults = ({
       const health = calculatePlantHealth();
       const baseHeight = 20;
       const growthFactor = (health / 100) * (lightIntensity / 100);
-      const currentHeight = baseHeight + (snapshots.length * 5 * growthFactor);
+      const weekNumber = snapshots.length + 1;
+      const currentHeight = baseHeight + (weekNumber * 5 * growthFactor);
       
       const image = generatePlantImage(health, Math.min(currentHeight, 100));
       
@@ -117,15 +118,16 @@ const PlantGrowthResults = ({
         health,
         height: Math.min(currentHeight, 100),
         image,
+        weekNumber,
       };
 
       setSnapshots((prev) => [...prev, newSnapshot]);
 
       toast({
-        title: "Growth Snapshot Captured",
-        description: `Plant health: ${health.toFixed(0)}%`,
+        title: "Week " + weekNumber + " Growth Captured",
+        description: `Plant health: ${health.toFixed(0)}%, Height: ${Math.min(currentHeight, 100).toFixed(0)}cm`,
       });
-    }, 10000); // Capture every 10 seconds
+    }, 10000); // Capture every 10 seconds = 1 week of growth
 
     return () => clearInterval(interval);
   }, [isTracking, moisture, temperature, soilPh, lightIntensity, humidity, snapshots.length]);
@@ -162,7 +164,7 @@ const PlantGrowthResults = ({
             📊 Plant Growth Results
           </CardTitle>
           <CardDescription>
-            Track plant growth over time with visual snapshots
+            Track plant growth over time - Each snapshot represents 1 week of growth
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -201,7 +203,10 @@ const PlantGrowthResults = ({
           {isTracking && (
             <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
               <p className="text-sm font-medium">
-                🟢 Recording growth snapshots every 10 seconds...
+                🟢 Recording growth snapshots every 10 seconds (1 week of growth each)...
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Next snapshot: Week {snapshots.length + 1}
               </p>
             </div>
           )}
@@ -216,11 +221,11 @@ const PlantGrowthResults = ({
                     className="w-full rounded-lg border-2 border-primary/20 shadow-lg"
                   />
                   <div className="text-xs space-y-1">
-                    <p className="font-semibold">Snapshot #{index + 1}</p>
+                    <p className="font-semibold text-primary">Week {snapshot.weekNumber}</p>
                     <p>Health: {snapshot.health.toFixed(0)}%</p>
                     <p>Height: {snapshot.height.toFixed(0)}cm</p>
                     <p className="text-muted-foreground">
-                      {new Date(snapshot.timestamp).toLocaleTimeString()}
+                      Captured: {new Date(snapshot.timestamp).toLocaleTimeString()}
                     </p>
                   </div>
                 </div>
@@ -231,7 +236,8 @@ const PlantGrowthResults = ({
           {snapshots.length === 0 && !isTracking && (
             <div className="text-center p-8 text-muted-foreground">
               <p>No growth data recorded yet.</p>
-              <p className="text-sm mt-2">Click "Start Tracking" to begin recording plant growth.</p>
+              <p className="text-sm mt-2">Click "Start Tracking" to begin recording weekly plant growth.</p>
+              <p className="text-xs mt-1">Each 10-second interval = 1 week of growth</p>
             </div>
           )}
         </CardContent>
