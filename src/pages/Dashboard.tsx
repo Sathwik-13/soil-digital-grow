@@ -55,6 +55,78 @@ const Dashboard = () => {
   const [potassium, setPotassium] = useState(60);
   const [activeGraph, setActiveGraph] = useState<string | null>(null);
 
+  // Apply realistic environmental interdependencies
+  const applyEnvironmentalEffects = (
+    changedFactor: string,
+    newValue: number,
+    currentValues: {
+      moisture: number;
+      temperature: number;
+      humidity: number;
+      lightIntensity: number;
+      solarRadiation: number;
+      windSpeed: number;
+      airPressure: number;
+      todayRainfall: number;
+    }
+  ) => {
+    const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
+
+    switch (changedFactor) {
+      case "solarRadiation":
+        // Solar radiation increases temperature, light, and decreases humidity/moisture
+        const solarEffect = (newValue - 100) / 100; // Normalize around 100 W/m²
+        setTemperature(prev => clamp(prev + solarEffect * 2, 15, 45));
+        setLightIntensity(prev => clamp(prev + solarEffect * 5, 0, 100));
+        setHumidity(prev => clamp(prev - solarEffect * 3, 0, 100));
+        setMoisture(prev => clamp(prev - solarEffect * 1.5, 0, 100));
+        break;
+
+      case "temperature":
+        // Temperature affects humidity inversely and reduces moisture
+        const tempEffect = (newValue - 25) / 10; // Normalize around 25°C
+        setHumidity(prev => clamp(prev - tempEffect * 4, 0, 100));
+        setMoisture(prev => clamp(prev - tempEffect * 2, 0, 100));
+        setAirPressure(prev => clamp(prev - tempEffect * 2, 850, 1050));
+        break;
+
+      case "todayRainfall":
+        // Rainfall increases moisture and humidity, slightly cools temperature
+        const rainEffect = newValue / 10;
+        setMoisture(prev => clamp(prev + rainEffect * 8, 0, 100));
+        setHumidity(prev => clamp(prev + rainEffect * 5, 0, 100));
+        setTemperature(prev => clamp(prev - rainEffect * 0.5, 15, 45));
+        break;
+
+      case "windSpeed":
+        // Wind increases evaporation, reduces moisture and humidity, cooling effect
+        const windEffect = (newValue - 2) / 2; // Normalize around 2 m/s
+        setMoisture(prev => clamp(prev - windEffect * 3, 0, 100));
+        setHumidity(prev => clamp(prev - windEffect * 4, 0, 100));
+        setTemperature(prev => clamp(prev - windEffect * 1.5, 15, 45));
+        break;
+
+      case "humidity":
+        // Humidity helps retain soil moisture
+        const humidityEffect = (newValue - 50) / 50; // Normalize around 50%
+        setMoisture(prev => clamp(prev + humidityEffect * 2, 0, 100));
+        break;
+
+      case "airPressure":
+        // Air pressure slightly affects temperature
+        const pressureEffect = (newValue - 915) / 100; // Normalize around 915 hPa (Bangalore)
+        setTemperature(prev => clamp(prev + pressureEffect * 0.5, 15, 45));
+        break;
+
+      case "lightIntensity":
+        // Light intensity affects temperature and moisture (evaporation)
+        const lightEffect = (newValue - 50) / 50; // Normalize around 50%
+        setTemperature(prev => clamp(prev + lightEffect * 1.5, 15, 45));
+        setMoisture(prev => clamp(prev - lightEffect * 1, 0, 100));
+        break;
+    }
+  };
+
   // Simulate Bangalore climate variations
   useEffect(() => {
     const interval = setInterval(() => {
@@ -311,7 +383,10 @@ const Dashboard = () => {
               <div className="text-3xl font-bold text-primary">{moisture}%</div>
               <Slider
                 value={[moisture]}
-                onValueChange={(val) => setMoisture(val[0])}
+                onValueChange={(val) => {
+                  setMoisture(val[0]);
+                  // Moisture changes don't trigger other effects directly
+                }}
                 min={0}
                 max={100}
                 step={1}
@@ -340,7 +415,19 @@ const Dashboard = () => {
               <div className="text-3xl font-bold text-primary">{temperature}°C</div>
               <Slider
                 value={[temperature]}
-                onValueChange={(val) => setTemperature(val[0])}
+                onValueChange={(val) => {
+                  setTemperature(val[0]);
+                  applyEnvironmentalEffects("temperature", val[0], {
+                    moisture,
+                    temperature: val[0],
+                    humidity,
+                    lightIntensity,
+                    solarRadiation,
+                    windSpeed,
+                    airPressure,
+                    todayRainfall,
+                  });
+                }}
                 min={15}
                 max={45}
                 step={0.1}
@@ -369,7 +456,19 @@ const Dashboard = () => {
               <div className="text-3xl font-bold text-primary">{humidity}%</div>
               <Slider
                 value={[humidity]}
-                onValueChange={(val) => setHumidity(val[0])}
+                onValueChange={(val) => {
+                  setHumidity(val[0]);
+                  applyEnvironmentalEffects("humidity", val[0], {
+                    moisture,
+                    temperature,
+                    humidity: val[0],
+                    lightIntensity,
+                    solarRadiation,
+                    windSpeed,
+                    airPressure,
+                    todayRainfall,
+                  });
+                }}
                 min={0}
                 max={100}
                 step={1}
@@ -427,7 +526,19 @@ const Dashboard = () => {
               <div className="text-3xl font-bold text-primary">{lightIntensity}%</div>
               <Slider
                 value={[lightIntensity]}
-                onValueChange={(val) => setLightIntensity(val[0])}
+                onValueChange={(val) => {
+                  setLightIntensity(val[0]);
+                  applyEnvironmentalEffects("lightIntensity", val[0], {
+                    moisture,
+                    temperature,
+                    humidity,
+                    lightIntensity: val[0],
+                    solarRadiation,
+                    windSpeed,
+                    airPressure,
+                    todayRainfall,
+                  });
+                }}
                 min={0}
                 max={100}
                 step={1}
@@ -469,7 +580,19 @@ const Dashboard = () => {
               <div className="text-3xl font-bold text-primary">{airPressure} hPa</div>
               <Slider
                 value={[airPressure]}
-                onValueChange={(val) => setAirPressure(val[0])}
+                onValueChange={(val) => {
+                  setAirPressure(val[0]);
+                  applyEnvironmentalEffects("airPressure", val[0], {
+                    moisture,
+                    temperature,
+                    humidity,
+                    lightIntensity,
+                    solarRadiation,
+                    windSpeed,
+                    airPressure: val[0],
+                    todayRainfall,
+                  });
+                }}
                 min={850}
                 max={1050}
                 step={1}
@@ -498,7 +621,19 @@ const Dashboard = () => {
               <div className="text-3xl font-bold text-primary">{solarRadiation} W/m²</div>
               <Slider
                 value={[solarRadiation]}
-                onValueChange={(val) => setSolarRadiation(val[0])}
+                onValueChange={(val) => {
+                  setSolarRadiation(val[0]);
+                  applyEnvironmentalEffects("solarRadiation", val[0], {
+                    moisture,
+                    temperature,
+                    humidity,
+                    lightIntensity,
+                    solarRadiation: val[0],
+                    windSpeed,
+                    airPressure,
+                    todayRainfall,
+                  });
+                }}
                 min={0}
                 max={1000}
                 step={1}
@@ -527,7 +662,19 @@ const Dashboard = () => {
               <div className="text-3xl font-bold text-primary">{windSpeed} m/s</div>
               <Slider
                 value={[windSpeed]}
-                onValueChange={(val) => setWindSpeed(val[0])}
+                onValueChange={(val) => {
+                  setWindSpeed(val[0]);
+                  applyEnvironmentalEffects("windSpeed", val[0], {
+                    moisture,
+                    temperature,
+                    humidity,
+                    lightIntensity,
+                    solarRadiation,
+                    windSpeed: val[0],
+                    airPressure,
+                    todayRainfall,
+                  });
+                }}
                 min={0}
                 max={30}
                 step={0.1}
@@ -614,7 +761,19 @@ const Dashboard = () => {
               <div className="text-3xl font-bold text-cyan-600">{todayRainfall} mm</div>
               <Slider
                 value={[todayRainfall]}
-                onValueChange={(val) => setTodayRainfall(val[0])}
+                onValueChange={(val) => {
+                  setTodayRainfall(val[0]);
+                  applyEnvironmentalEffects("todayRainfall", val[0], {
+                    moisture,
+                    temperature,
+                    humidity,
+                    lightIntensity,
+                    solarRadiation,
+                    windSpeed,
+                    airPressure,
+                    todayRainfall: val[0],
+                  });
+                }}
                 min={0}
                 max={200}
                 step={0.1}
