@@ -136,12 +136,16 @@ const RealisticPlant = ({
 const WaterDroplets = ({ moisture, humidity }: { moisture: number; humidity: number }) => {
   const pointsRef = useRef<THREE.Points>(null);
   
+  const particleCount = useMemo(() => 
+    Math.floor((moisture / 100) * 150 + (humidity / 100) * 50),
+    [moisture, humidity]
+  );
+
   const [positions, velocities] = useMemo(() => {
-    const count = Math.floor((moisture / 100) * 150 + (humidity / 100) * 50);
-    const pos = new Float32Array(count * 3);
-    const vel = new Float32Array(count * 3);
+    const pos = new Float32Array(particleCount * 3);
+    const vel = new Float32Array(particleCount * 3);
     
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < particleCount; i++) {
       pos[i * 3] = (Math.random() - 0.5) * 8;
       pos[i * 3 + 1] = Math.random() * 3 - 0.3;
       pos[i * 3 + 2] = (Math.random() - 0.5) * 8;
@@ -152,7 +156,7 @@ const WaterDroplets = ({ moisture, humidity }: { moisture: number; humidity: num
     }
     
     return [pos, vel];
-  }, [moisture, humidity]);
+  }, [particleCount]);
 
   useFrame(() => {
     if (pointsRef.current) {
@@ -175,7 +179,7 @@ const WaterDroplets = ({ moisture, humidity }: { moisture: number; humidity: num
   });
 
   return (
-    <points ref={pointsRef}>
+    <points ref={pointsRef} key={particleCount}>
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
@@ -319,7 +323,7 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Fiel
       <hemisphereLight intensity={0.3} groundColor="#8B7355" />
 
       <RealisticSoilLayer moisture={moisture} soilPh={soilPh} />
-      <WaterDroplets moisture={moisture} humidity={humidity} />
+      <WaterDroplets key={`${moisture}-${humidity}`} moisture={moisture} humidity={humidity} />
       <IrrigationSystem active={isIrrigating} />
 
       {/* Sensor poles */}
