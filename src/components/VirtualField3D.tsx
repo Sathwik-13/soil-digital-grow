@@ -15,50 +15,86 @@ interface FieldProps {
 const SoilCracks = ({ moisture }: { moisture: number }) => {
   const crackIntensity = useMemo(() => Math.max(0, (20 - moisture) / 20), [moisture]);
   
+  // Use a seed-based approach for consistent crack positions
   const cracks = useMemo(() => {
     if (crackIntensity <= 0) return [];
-    const crackCount = Math.floor(crackIntensity * 15) + 5;
-    return Array.from({ length: crackCount }, (_, i) => ({
-      x: (Math.random() - 0.5) * 8,
-      z: (Math.random() - 0.5) * 8,
-      rotation: Math.random() * Math.PI,
-      length: 0.5 + Math.random() * 1.5,
-      width: 0.02 + Math.random() * 0.04,
-    }));
+    const crackCount = Math.floor(crackIntensity * 25) + 10;
+    const result = [];
+    
+    for (let i = 0; i < crackCount; i++) {
+      // Create main crack
+      const x = ((i * 7.3) % 8) - 4;
+      const z = ((i * 5.7) % 8) - 4;
+      result.push({
+        x,
+        z,
+        rotation: (i * 0.7) % Math.PI,
+        length: 0.8 + (i % 5) * 0.4,
+        width: 0.08 + (i % 3) * 0.04,
+        isMain: true,
+      });
+      
+      // Add branching cracks
+      if (i % 2 === 0) {
+        result.push({
+          x: x + 0.3,
+          z: z + 0.2,
+          rotation: ((i * 0.7) % Math.PI) + Math.PI / 4,
+          length: 0.4 + (i % 3) * 0.2,
+          width: 0.05,
+          isMain: false,
+        });
+      }
+    }
+    return result;
   }, [crackIntensity]);
 
   if (crackIntensity <= 0) return null;
 
   return (
-    <group>
+    <group position={[0, 0, 0]}>
       {cracks.map((crack, i) => (
-        <mesh
-          key={i}
-          position={[crack.x, -0.48, crack.z]}
-          rotation={[-Math.PI / 2, 0, crack.rotation]}
-        >
-          <planeGeometry args={[crack.length, crack.width]} />
-          <meshStandardMaterial 
-            color="#1a0f05" 
-            roughness={1}
-            transparent
-            opacity={0.8 * crackIntensity}
-          />
-        </mesh>
+        <group key={i}>
+          {/* Dark crack base - visible depression */}
+          <mesh
+            position={[crack.x, -0.44, crack.z]}
+            rotation={[-Math.PI / 2, 0, crack.rotation]}
+          >
+            <planeGeometry args={[crack.length, crack.width * 1.5]} />
+            <meshBasicMaterial 
+              color="#0a0503"
+              transparent
+              opacity={0.95}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+          {/* Lighter edge highlight */}
+          <mesh
+            position={[crack.x, -0.43, crack.z]}
+            rotation={[-Math.PI / 2, 0, crack.rotation]}
+          >
+            <planeGeometry args={[crack.length + 0.1, crack.width * 2.5]} />
+            <meshBasicMaterial 
+              color="#3d2914"
+              transparent
+              opacity={0.6 * crackIntensity}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        </group>
       ))}
-      {/* Deep crack lines */}
-      {cracks.slice(0, Math.floor(cracks.length / 2)).map((crack, i) => (
+      
+      {/* Add 3D crack depth effect using boxes */}
+      {cracks.filter(c => c.isMain).slice(0, 8).map((crack, i) => (
         <mesh
-          key={`deep-${i}`}
-          position={[crack.x, -0.49, crack.z]}
-          rotation={[-Math.PI / 2, 0, crack.rotation + Math.PI / 4]}
+          key={`3d-${i}`}
+          position={[crack.x, -0.52, crack.z]}
+          rotation={[0, crack.rotation, 0]}
         >
-          <planeGeometry args={[crack.length * 0.7, crack.width * 0.5]} />
+          <boxGeometry args={[crack.length * 0.8, 0.1, crack.width * 0.8]} />
           <meshStandardMaterial 
-            color="#0d0703" 
+            color="#1a0a05"
             roughness={1}
-            transparent
-            opacity={0.9 * crackIntensity}
           />
         </mesh>
       ))}
