@@ -1,7 +1,8 @@
 import { useRef, useMemo, useEffect, useState } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { OrbitControls, Text, Environment, Sky, Cloud } from '@react-three/drei';
+import { OrbitControls, Text, Environment, Sky, Cloud, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
+import crackedSoilTexture from '@/assets/cracked-soil-texture.png';
 
 interface FieldProps {
   moisture: number;
@@ -11,125 +12,27 @@ interface FieldProps {
   humidity: number;
 }
 
-// Realistic dried mud cracks using canvas texture overlay
+// Realistic dried mud cracks using actual texture
 const CrackedSoilOverlay = ({ moisture }: { moisture: number }) => {
   const crackIntensity = useMemo(() => Math.max(0, (20 - moisture) / 20), [moisture]);
+  const texture = useTexture(crackedSoilTexture);
   
-  const crackTexture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d')!;
-    
-    // Clear with transparent
-    ctx.clearRect(0, 0, 512, 512);
-    
-    if (crackIntensity <= 0) {
-      return new THREE.CanvasTexture(canvas);
-    }
-    
-    // Generate Voronoi-like cell centers
-    const cells: { x: number; y: number }[] = [];
-    const cellCount = 30 + Math.floor(crackIntensity * 20);
-    
-    // Use deterministic positions
-    for (let i = 0; i < cellCount; i++) {
-      cells.push({
-        x: ((i * 73 + 17) % 512),
-        y: ((i * 97 + 31) % 512),
-      });
-    }
-    
-    // Draw cracks between nearby cells (Delaunay-like connections)
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    
-    for (let i = 0; i < cells.length; i++) {
-      const nearestCells: { cell: typeof cells[0]; dist: number }[] = [];
-      
-      for (let j = 0; j < cells.length; j++) {
-        if (i === j) continue;
-        const dx = cells[j].x - cells[i].x;
-        const dy = cells[j].y - cells[i].y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 120) {
-          nearestCells.push({ cell: cells[j], dist });
-        }
-      }
-      
-      // Sort by distance and connect to nearest neighbors
-      nearestCells.sort((a, b) => a.dist - b.dist);
-      
-      for (let k = 0; k < Math.min(3, nearestCells.length); k++) {
-        const neighbor = nearestCells[k];
-        
-        // Calculate midpoint
-        const midX = (cells[i].x + neighbor.cell.x) / 2;
-        const midY = (cells[i].y + neighbor.cell.y) / 2;
-        
-        // Calculate perpendicular direction for crack line
-        const dx = neighbor.cell.x - cells[i].x;
-        const dy = neighbor.cell.y - cells[i].y;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        const perpX = -dy / len;
-        const perpY = dx / len;
-        
-        // Crack length based on distance
-        const crackLen = len * 0.4 + 10;
-        
-        // Draw shadow/wider crack first
-        ctx.strokeStyle = `rgba(30, 15, 5, ${0.4 * crackIntensity})`;
-        ctx.lineWidth = 8 + (k % 3) * 3;
-        ctx.beginPath();
-        ctx.moveTo(midX - perpX * crackLen, midY - perpY * crackLen);
-        
-        // Add slight curve for natural look
-        const ctrlX = midX + (Math.sin(i + k) * 5);
-        const ctrlY = midY + (Math.cos(i + k) * 5);
-        ctx.quadraticCurveTo(ctrlX, ctrlY, midX + perpX * crackLen, midY + perpY * crackLen);
-        ctx.stroke();
-        
-        // Draw main dark crack
-        ctx.strokeStyle = `rgba(10, 5, 2, ${0.9 * crackIntensity})`;
-        ctx.lineWidth = 3 + (k % 2) * 2;
-        ctx.beginPath();
-        ctx.moveTo(midX - perpX * crackLen, midY - perpY * crackLen);
-        ctx.quadraticCurveTo(ctrlX, ctrlY, midX + perpX * crackLen, midY + perpY * crackLen);
-        ctx.stroke();
-      }
-    }
-    
-    // Add some random smaller cracks for detail
-    const smallCrackCount = Math.floor(crackIntensity * 40);
-    for (let i = 0; i < smallCrackCount; i++) {
-      const x = (i * 47) % 512;
-      const y = (i * 61) % 512;
-      const angle = (i * 0.7) % (Math.PI * 2);
-      const length = 15 + (i % 20);
-      
-      ctx.strokeStyle = `rgba(15, 8, 3, ${0.6 * crackIntensity})`;
-      ctx.lineWidth = 1 + (i % 2);
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
-      ctx.stroke();
-    }
-    
-    const texture = new THREE.CanvasTexture(canvas);
+  useMemo(() => {
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    return texture;
-  }, [crackIntensity]);
+    texture.repeat.set(2, 2);
+  }, [texture]);
 
   if (crackIntensity <= 0) return null;
 
   return (
-    <mesh position={[0, -0.48, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh position={[0, -0.47, 0]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[10, 10]} />
-      <meshBasicMaterial 
-        map={crackTexture}
+      <meshStandardMaterial 
+        map={texture}
         transparent
-        opacity={1}
-        depthWrite={false}
+        opacity={crackIntensity}
+        roughness={1}
+        metalness={0}
       />
     </mesh>
   );
