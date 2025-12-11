@@ -11,6 +11,369 @@ interface FieldProps {
   humidity: number;
 }
 
+// Soil cracks component for low moisture
+const SoilCracks = ({ moisture }: { moisture: number }) => {
+  const crackIntensity = useMemo(() => Math.max(0, (20 - moisture) / 20), [moisture]);
+  
+  const cracks = useMemo(() => {
+    if (crackIntensity <= 0) return [];
+    const crackCount = Math.floor(crackIntensity * 15) + 5;
+    return Array.from({ length: crackCount }, (_, i) => ({
+      x: (Math.random() - 0.5) * 8,
+      z: (Math.random() - 0.5) * 8,
+      rotation: Math.random() * Math.PI,
+      length: 0.5 + Math.random() * 1.5,
+      width: 0.02 + Math.random() * 0.04,
+    }));
+  }, [crackIntensity]);
+
+  if (crackIntensity <= 0) return null;
+
+  return (
+    <group>
+      {cracks.map((crack, i) => (
+        <mesh
+          key={i}
+          position={[crack.x, -0.48, crack.z]}
+          rotation={[-Math.PI / 2, 0, crack.rotation]}
+        >
+          <planeGeometry args={[crack.length, crack.width]} />
+          <meshStandardMaterial 
+            color="#1a0f05" 
+            roughness={1}
+            transparent
+            opacity={0.8 * crackIntensity}
+          />
+        </mesh>
+      ))}
+      {/* Deep crack lines */}
+      {cracks.slice(0, Math.floor(cracks.length / 2)).map((crack, i) => (
+        <mesh
+          key={`deep-${i}`}
+          position={[crack.x, -0.49, crack.z]}
+          rotation={[-Math.PI / 2, 0, crack.rotation + Math.PI / 4]}
+        >
+          <planeGeometry args={[crack.length * 0.7, crack.width * 0.5]} />
+          <meshStandardMaterial 
+            color="#0d0703" 
+            roughness={1}
+            transparent
+            opacity={0.9 * crackIntensity}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Dust particles for dry soil
+const DustParticles = ({ moisture, temperature }: { moisture: number; temperature: number }) => {
+  const pointsRef = useRef<THREE.Points>(null);
+  const dustIntensity = useMemo(() => Math.max(0, (30 - moisture) / 30) * (temperature > 25 ? 1.5 : 1), [moisture, temperature]);
+  
+  const particleCount = useMemo(() => Math.floor(dustIntensity * 100), [dustIntensity]);
+
+  const [positions, velocities] = useMemo(() => {
+    if (particleCount === 0) return [new Float32Array(0), new Float32Array(0)];
+    const pos = new Float32Array(particleCount * 3);
+    const vel = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 10;
+      pos[i * 3 + 1] = Math.random() * 2;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 10;
+      
+      vel[i * 3] = (Math.random() - 0.3) * 0.02;
+      vel[i * 3 + 1] = (Math.random() - 0.5) * 0.005;
+      vel[i * 3 + 2] = (Math.random() - 0.5) * 0.01;
+    }
+    
+    return [pos, vel];
+  }, [particleCount]);
+
+  useFrame(() => {
+    if (pointsRef.current && particleCount > 0) {
+      const pos = pointsRef.current.geometry.attributes.position.array as Float32Array;
+      
+      for (let i = 0; i < pos.length / 3; i++) {
+        pos[i * 3] += velocities[i * 3];
+        pos[i * 3 + 1] += velocities[i * 3 + 1];
+        pos[i * 3 + 2] += velocities[i * 3 + 2];
+        
+        if (pos[i * 3] > 5 || pos[i * 3] < -5) {
+          pos[i * 3] = (Math.random() - 0.5) * 10;
+        }
+        if (pos[i * 3 + 1] > 2.5) {
+          pos[i * 3 + 1] = 0;
+        }
+      }
+      
+      pointsRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+  });
+
+  if (particleCount === 0) return null;
+
+  return (
+    <points ref={pointsRef} key={`dust-${particleCount}`}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={positions.length / 3}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial 
+        size={0.08} 
+        color="#c4a574" 
+        transparent 
+        opacity={0.4 * dustIntensity}
+        sizeAttenuation
+      />
+    </points>
+  );
+};
+
+// Heat shimmer effect for high temperature
+const HeatShimmer = ({ temperature }: { temperature: number }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const heatIntensity = useMemo(() => Math.max(0, (temperature - 30) / 20), [temperature]);
+
+  useFrame((state) => {
+    if (meshRef.current && heatIntensity > 0) {
+      const material = meshRef.current.material as THREE.MeshStandardMaterial;
+      material.opacity = 0.1 + Math.sin(state.clock.elapsedTime * 3) * 0.05 * heatIntensity;
+    }
+  });
+
+  if (heatIntensity <= 0) return null;
+
+  return (
+    <mesh ref={meshRef} position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[12, 12]} />
+      <meshStandardMaterial 
+        color="#ffaa00"
+        transparent
+        opacity={0.1 * heatIntensity}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+};
+
+// Frost crystals for low temperature
+const FrostCrystals = ({ temperature }: { temperature: number }) => {
+  const frostIntensity = useMemo(() => Math.max(0, (10 - temperature) / 15), [temperature]);
+
+  const crystals = useMemo(() => {
+    if (frostIntensity <= 0) return [];
+    const count = Math.floor(frostIntensity * 40) + 10;
+    return Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 9,
+      z: (Math.random() - 0.5) * 9,
+      scale: 0.05 + Math.random() * 0.1,
+      rotation: Math.random() * Math.PI * 2,
+    }));
+  }, [frostIntensity]);
+
+  if (frostIntensity <= 0) return null;
+
+  return (
+    <group>
+      {crystals.map((crystal, i) => (
+        <mesh
+          key={i}
+          position={[crystal.x, -0.45, crystal.z]}
+          rotation={[0, crystal.rotation, 0]}
+          scale={crystal.scale}
+        >
+          <octahedronGeometry args={[1, 0]} />
+          <meshStandardMaterial 
+            color="#e0f7fa"
+            transparent
+            opacity={0.7 * frostIntensity}
+            metalness={0.3}
+            roughness={0.1}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Salt deposits for high pH
+const SaltDeposits = ({ soilPh }: { soilPh: number }) => {
+  const saltIntensity = useMemo(() => Math.max(0, (soilPh - 7.5) / 2), [soilPh]);
+
+  const deposits = useMemo(() => {
+    if (saltIntensity <= 0) return [];
+    const count = Math.floor(saltIntensity * 25) + 5;
+    return Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 8,
+      z: (Math.random() - 0.5) * 8,
+      scaleX: 0.1 + Math.random() * 0.3,
+      scaleZ: 0.1 + Math.random() * 0.3,
+    }));
+  }, [saltIntensity]);
+
+  if (saltIntensity <= 0) return null;
+
+  return (
+    <group>
+      {deposits.map((deposit, i) => (
+        <mesh
+          key={i}
+          position={[deposit.x, -0.47, deposit.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <circleGeometry args={[deposit.scaleX, 8]} />
+          <meshStandardMaterial 
+            color="#f5f5f5"
+            transparent
+            opacity={0.6 * saltIntensity}
+            roughness={0.9}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Acid burn patches for low pH
+const AcidPatches = ({ soilPh }: { soilPh: number }) => {
+  const acidIntensity = useMemo(() => Math.max(0, (5.5 - soilPh) / 2), [soilPh]);
+
+  const patches = useMemo(() => {
+    if (acidIntensity <= 0) return [];
+    const count = Math.floor(acidIntensity * 20) + 5;
+    return Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 8,
+      z: (Math.random() - 0.5) * 8,
+      scale: 0.15 + Math.random() * 0.35,
+    }));
+  }, [acidIntensity]);
+
+  if (acidIntensity <= 0) return null;
+
+  return (
+    <group>
+      {patches.map((patch, i) => (
+        <mesh
+          key={i}
+          position={[patch.x, -0.46, patch.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <circleGeometry args={[patch.scale, 12]} />
+          <meshStandardMaterial 
+            color="#5d4037"
+            transparent
+            opacity={0.7 * acidIntensity}
+            roughness={1}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Waterlogging puddles for high moisture
+const WaterPuddles = ({ moisture }: { moisture: number }) => {
+  const puddleIntensity = useMemo(() => Math.max(0, (moisture - 75) / 25), [moisture]);
+
+  const puddles = useMemo(() => {
+    if (puddleIntensity <= 0) return [];
+    const count = Math.floor(puddleIntensity * 12) + 3;
+    return Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 7,
+      z: (Math.random() - 0.5) * 7,
+      scaleX: 0.3 + Math.random() * 0.6,
+      scaleZ: 0.2 + Math.random() * 0.4,
+    }));
+  }, [puddleIntensity]);
+
+  if (puddleIntensity <= 0) return null;
+
+  return (
+    <group>
+      {puddles.map((puddle, i) => (
+        <mesh
+          key={i}
+          position={[puddle.x, -0.44, puddle.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[puddle.scaleX, puddle.scaleZ, 1]}
+        >
+          <circleGeometry args={[1, 16]} />
+          <meshStandardMaterial 
+            color="#1e88e5"
+            transparent
+            opacity={0.5 * puddleIntensity}
+            metalness={0.3}
+            roughness={0.1}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Status warning indicators floating above field
+const StatusIndicators = ({ moisture, temperature, soilPh, lightIntensity, humidity }: FieldProps) => {
+  const warnings = useMemo(() => {
+    const w: { text: string; color: string; position: [number, number, number] }[] = [];
+    
+    if (moisture < 20) {
+      w.push({ text: "⚠️ Severe Drought", color: "#ff5722", position: [-3, 2.3, 0] });
+    } else if (moisture < 30) {
+      w.push({ text: "🏜️ Low Moisture", color: "#ff9800", position: [-3, 2.3, 0] });
+    }
+    
+    if (moisture > 80) {
+      w.push({ text: "💧 Waterlogging Risk", color: "#2196f3", position: [3, 2.3, 0] });
+    }
+    
+    if (temperature > 40) {
+      w.push({ text: "🔥 Heat Stress", color: "#f44336", position: [-3, 2, 2] });
+    } else if (temperature < 5) {
+      w.push({ text: "❄️ Frost Warning", color: "#00bcd4", position: [-3, 2, 2] });
+    }
+    
+    if (soilPh > 8) {
+      w.push({ text: "⚗️ High Alkalinity", color: "#9c27b0", position: [3, 2, 2] });
+    } else if (soilPh < 5.5) {
+      w.push({ text: "⚗️ High Acidity", color: "#ff5722", position: [3, 2, 2] });
+    }
+    
+    if (lightIntensity < 30) {
+      w.push({ text: "🌑 Low Light", color: "#607d8b", position: [0, 2.3, 3] });
+    }
+    
+    if (humidity > 90) {
+      w.push({ text: "💨 High Humidity", color: "#03a9f4", position: [0, 2, -3] });
+    }
+    
+    return w;
+  }, [moisture, temperature, soilPh, lightIntensity, humidity]);
+
+  return (
+    <group>
+      {warnings.map((warning, i) => (
+        <Text
+          key={i}
+          position={warning.position}
+          fontSize={0.2}
+          color={warning.color}
+          anchorX="center"
+          outlineWidth={0.01}
+          outlineColor="#000000"
+        >
+          {warning.text}
+        </Text>
+      ))}
+    </group>
+  );
+};
+
 const RealisticSoilLayer = ({ moisture, soilPh }: { moisture: number; soilPh: number }) => {
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -20,7 +383,7 @@ const RealisticSoilLayer = ({ moisture, soilPh }: { moisture: number; soilPh: nu
     canvas.height = 512;
     const ctx = canvas.getContext('2d')!;
     
-    // Base soil color
+    // Base soil color - affected by moisture
     const moistureFactor = moisture / 100;
     const baseR = Math.floor((0.4 - moistureFactor * 0.2) * 255);
     const baseG = Math.floor((0.26 - moistureFactor * 0.15) * 255);
@@ -62,34 +425,53 @@ const RealisticPlant = ({
   position, 
   health,
   temperature,
-  lightIntensity 
+  lightIntensity,
+  moisture 
 }: { 
   position: [number, number, number];
   health: number;
   temperature: number;
   lightIntensity: number;
+  moisture: number;
 }) => {
   const groupRef = useRef<THREE.Group>(null);
 
+  // Calculate wilting based on conditions
+  const wiltFactor = useMemo(() => {
+    let wilt = 0;
+    if (moisture < 25) wilt += (25 - moisture) / 25 * 0.5;
+    if (temperature > 38) wilt += (temperature - 38) / 12 * 0.3;
+    if (health < 40) wilt += (40 - health) / 40 * 0.2;
+    return Math.min(1, wilt);
+  }, [moisture, temperature, health]);
+
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5 + position[0]) * 0.03;
-      groupRef.current.position.y = Math.sin(state.clock.elapsedTime + position[0]) * 0.02;
+      // Natural sway reduced when wilting
+      const swayAmount = 0.03 * (1 - wiltFactor * 0.7);
+      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5 + position[0]) * swayAmount;
+      groupRef.current.position.y = Math.sin(state.clock.elapsedTime + position[0]) * 0.02 * (1 - wiltFactor);
+      
+      // Wilting effect - droop
+      groupRef.current.rotation.x = wiltFactor * 0.3;
     }
   });
 
   const leafColor = useMemo(() => {
     const healthFactor = health / 100;
+    // Add browning for drought stress
+    const brownFactor = moisture < 25 ? (25 - moisture) / 25 * 0.3 : 0;
     return new THREE.Color(
-      0.1 + (1 - healthFactor) * 0.4,
-      0.3 + healthFactor * 0.5,
+      0.1 + (1 - healthFactor) * 0.4 + brownFactor * 0.3,
+      0.3 + healthFactor * 0.5 - brownFactor * 0.2,
       0.05
     );
-  }, [health]);
+  }, [health, moisture]);
 
   const scale = useMemo(() => {
-    return (0.6 + (health / 100) * 0.4) * (0.8 + (lightIntensity / 100) * 0.2);
-  }, [health, lightIntensity]);
+    const baseScale = (0.6 + (health / 100) * 0.4) * (0.8 + (lightIntensity / 100) * 0.2);
+    return baseScale * (1 - wiltFactor * 0.3);
+  }, [health, lightIntensity, wiltFactor]);
 
   return (
     <group ref={groupRef} position={position}>
@@ -103,15 +485,16 @@ const RealisticPlant = ({
       {[0, 1, 2, 3, 4].map((i) => {
         const angle = (i / 5) * Math.PI * 2;
         const height = 0.4 + i * 0.1;
+        const droopAngle = wiltFactor * 0.5;
         return (
           <mesh
             key={i}
             position={[
               Math.cos(angle) * 0.15,
-              height,
+              height * (1 - wiltFactor * 0.2),
               Math.sin(angle) * 0.15
             ]}
-            rotation={[angle, angle, angle]}
+            rotation={[angle + droopAngle, angle, angle]}
             castShadow
           >
             <coneGeometry args={[0.12 * scale, 0.25 * scale, 6]} />
@@ -125,7 +508,7 @@ const RealisticPlant = ({
       })}
       
       {/* Top leaves */}
-      <mesh position={[0, 0.6, 0]} rotation={[0, 0, 0]} castShadow>
+      <mesh position={[0, 0.6 * (1 - wiltFactor * 0.3), 0]} rotation={[wiltFactor * 0.2, 0, 0]} castShadow>
         <sphereGeometry args={[0.15 * scale, 8, 6]} />
         <meshStandardMaterial color={leafColor} roughness={0.5} />
       </mesh>
@@ -293,11 +676,18 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Fiel
   const sunIntensity = useMemo(() => lightIntensity / 100, [lightIntensity]);
   const isIrrigating = moisture < 40;
 
+  // Sky color based on conditions
+  const skyTurbidity = useMemo(() => {
+    if (temperature > 35) return 12; // Hazy hot day
+    if (humidity > 80) return 10; // Humid/overcast
+    return 8;
+  }, [temperature, humidity]);
+
   return (
     <>
       <Sky 
         sunPosition={[100 * sunIntensity, 20 + 30 * sunIntensity, 100]} 
-        turbidity={8}
+        turbidity={skyTurbidity}
         rayleigh={0.5}
       />
       
@@ -323,6 +713,23 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Fiel
       <hemisphereLight intensity={0.3} groundColor="#8B7355" />
 
       <RealisticSoilLayer moisture={moisture} soilPh={soilPh} />
+      
+      {/* Environmental effects */}
+      <SoilCracks moisture={moisture} />
+      <DustParticles moisture={moisture} temperature={temperature} />
+      <HeatShimmer temperature={temperature} />
+      <FrostCrystals temperature={temperature} />
+      <SaltDeposits soilPh={soilPh} />
+      <AcidPatches soilPh={soilPh} />
+      <WaterPuddles moisture={moisture} />
+      <StatusIndicators 
+        moisture={moisture} 
+        temperature={temperature} 
+        soilPh={soilPh} 
+        lightIntensity={lightIntensity} 
+        humidity={humidity} 
+      />
+      
       <WaterDroplets key={`${moisture}-${humidity}`} moisture={moisture} humidity={humidity} />
       <IrrigationSystem active={isIrrigating} />
 
@@ -340,6 +747,7 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Fiel
             health={plantHealth + (Math.random() - 0.5) * 10}
             temperature={temperature}
             lightIntensity={lightIntensity}
+            moisture={moisture}
           />
         ))
       )}
