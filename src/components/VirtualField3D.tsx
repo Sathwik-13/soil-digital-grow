@@ -11,117 +11,127 @@ interface FieldProps {
   humidity: number;
 }
 
-// Realistic dried mud cracks - polygon web pattern
-const SoilCracks = ({ moisture }: { moisture: number }) => {
+// Realistic dried mud cracks using canvas texture overlay
+const CrackedSoilOverlay = ({ moisture }: { moisture: number }) => {
   const crackIntensity = useMemo(() => Math.max(0, (20 - moisture) / 20), [moisture]);
   
-  // Generate polygon cell centers and create cracks between them
-  const crackNetwork = useMemo(() => {
-    if (crackIntensity <= 0) return { lines: [], polygons: [] };
+  const crackTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
     
-    // Create cell centers for Voronoi-like pattern
-    const cellCount = 25 + Math.floor(crackIntensity * 15);
-    const cells: { x: number; z: number }[] = [];
+    // Clear with transparent
+    ctx.clearRect(0, 0, 512, 512);
     
+    if (crackIntensity <= 0) {
+      return new THREE.CanvasTexture(canvas);
+    }
+    
+    // Generate Voronoi-like cell centers
+    const cells: { x: number; y: number }[] = [];
+    const cellCount = 30 + Math.floor(crackIntensity * 20);
+    
+    // Use deterministic positions
     for (let i = 0; i < cellCount; i++) {
       cells.push({
-        x: ((i * 3.7 + Math.sin(i * 2.3) * 2) % 9) - 4.5,
-        z: ((i * 2.9 + Math.cos(i * 1.7) * 2) % 9) - 4.5,
+        x: ((i * 73 + 17) % 512),
+        y: ((i * 97 + 31) % 512),
       });
     }
     
-    // Create crack lines between nearby cells
-    const lines: { start: { x: number; z: number }; end: { x: number; z: number }; width: number }[] = [];
+    // Draw cracks between nearby cells (Delaunay-like connections)
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     
     for (let i = 0; i < cells.length; i++) {
-      for (let j = i + 1; j < cells.length; j++) {
+      const nearestCells: { cell: typeof cells[0]; dist: number }[] = [];
+      
+      for (let j = 0; j < cells.length; j++) {
+        if (i === j) continue;
         const dx = cells[j].x - cells[i].x;
-        const dz = cells[j].z - cells[i].z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        
-        // Connect nearby cells with cracks
-        if (dist < 2.0 && dist > 0.3) {
-          // Midpoint between cells (where crack forms)
-          const midX = (cells[i].x + cells[j].x) / 2;
-          const midZ = (cells[i].z + cells[j].z) / 2;
-          
-          // Perpendicular crack line
-          const perpX = -dz / dist;
-          const perpZ = dx / dist;
-          const crackLen = dist * 0.6 + 0.2;
-          
-          lines.push({
-            start: { x: midX - perpX * crackLen / 2, z: midZ - perpZ * crackLen / 2 },
-            end: { x: midX + perpX * crackLen / 2, z: midZ + perpZ * crackLen / 2 },
-            width: 0.03 + (i % 3) * 0.02,
-          });
+        const dy = cells[j].y - cells[i].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 120) {
+          nearestCells.push({ cell: cells[j], dist });
         }
+      }
+      
+      // Sort by distance and connect to nearest neighbors
+      nearestCells.sort((a, b) => a.dist - b.dist);
+      
+      for (let k = 0; k < Math.min(3, nearestCells.length); k++) {
+        const neighbor = nearestCells[k];
+        
+        // Calculate midpoint
+        const midX = (cells[i].x + neighbor.cell.x) / 2;
+        const midY = (cells[i].y + neighbor.cell.y) / 2;
+        
+        // Calculate perpendicular direction for crack line
+        const dx = neighbor.cell.x - cells[i].x;
+        const dy = neighbor.cell.y - cells[i].y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const perpX = -dy / len;
+        const perpY = dx / len;
+        
+        // Crack length based on distance
+        const crackLen = len * 0.4 + 10;
+        
+        // Draw shadow/wider crack first
+        ctx.strokeStyle = `rgba(30, 15, 5, ${0.4 * crackIntensity})`;
+        ctx.lineWidth = 8 + (k % 3) * 3;
+        ctx.beginPath();
+        ctx.moveTo(midX - perpX * crackLen, midY - perpY * crackLen);
+        
+        // Add slight curve for natural look
+        const ctrlX = midX + (Math.sin(i + k) * 5);
+        const ctrlY = midY + (Math.cos(i + k) * 5);
+        ctx.quadraticCurveTo(ctrlX, ctrlY, midX + perpX * crackLen, midY + perpY * crackLen);
+        ctx.stroke();
+        
+        // Draw main dark crack
+        ctx.strokeStyle = `rgba(10, 5, 2, ${0.9 * crackIntensity})`;
+        ctx.lineWidth = 3 + (k % 2) * 2;
+        ctx.beginPath();
+        ctx.moveTo(midX - perpX * crackLen, midY - perpY * crackLen);
+        ctx.quadraticCurveTo(ctrlX, ctrlY, midX + perpX * crackLen, midY + perpY * crackLen);
+        ctx.stroke();
       }
     }
     
-    return { lines, cells };
+    // Add some random smaller cracks for detail
+    const smallCrackCount = Math.floor(crackIntensity * 40);
+    for (let i = 0; i < smallCrackCount; i++) {
+      const x = (i * 47) % 512;
+      const y = (i * 61) % 512;
+      const angle = (i * 0.7) % (Math.PI * 2);
+      const length = 15 + (i % 20);
+      
+      ctx.strokeStyle = `rgba(15, 8, 3, ${0.6 * crackIntensity})`;
+      ctx.lineWidth = 1 + (i % 2);
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+      ctx.stroke();
+    }
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    return texture;
   }, [crackIntensity]);
 
   if (crackIntensity <= 0) return null;
 
   return (
-    <group position={[0, 0.01, 0]}>
-      {/* Main crack lines */}
-      {crackNetwork.lines.map((line, i) => {
-        const dx = line.end.x - line.start.x;
-        const dz = line.end.z - line.start.z;
-        const length = Math.sqrt(dx * dx + dz * dz);
-        const angle = Math.atan2(dz, dx);
-        const midX = (line.start.x + line.end.x) / 2;
-        const midZ = (line.start.z + line.end.z) / 2;
-        
-        return (
-          <group key={i}>
-            {/* Dark crack depth */}
-            <mesh
-              position={[midX, -0.42, midZ]}
-              rotation={[-Math.PI / 2, 0, -angle]}
-            >
-              <planeGeometry args={[length, line.width * 2 * crackIntensity]} />
-              <meshBasicMaterial 
-                color="#0a0402"
-                side={THREE.DoubleSide}
-              />
-            </mesh>
-            {/* Crack edge shadow */}
-            <mesh
-              position={[midX, -0.41, midZ]}
-              rotation={[-Math.PI / 2, 0, -angle]}
-            >
-              <planeGeometry args={[length + 0.05, line.width * 4 * crackIntensity]} />
-              <meshBasicMaterial 
-                color="#2d1a0f"
-                transparent
-                opacity={0.7}
-                side={THREE.DoubleSide}
-              />
-            </mesh>
-          </group>
-        );
-      })}
-      
-      {/* Add raised polygon edges to simulate lifted soil chunks */}
-      {crackNetwork.cells.slice(0, Math.floor(crackNetwork.cells.length * crackIntensity)).map((cell, i) => (
-        <mesh
-          key={`cell-${i}`}
-          position={[cell.x, -0.45, cell.z]}
-          rotation={[-Math.PI / 2, 0, i * 0.5]}
-        >
-          <circleGeometry args={[0.15 + (i % 3) * 0.1, 5 + (i % 3)]} />
-          <meshStandardMaterial 
-            color="#5c3d2a"
-            transparent
-            opacity={0.3 * crackIntensity}
-            roughness={1}
-          />
-        </mesh>
-      ))}
-    </group>
+    <mesh position={[0, -0.48, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[10, 10]} />
+      <meshBasicMaterial 
+        map={crackTexture}
+        transparent
+        opacity={1}
+        depthWrite={false}
+      />
+    </mesh>
   );
 };
 
@@ -774,7 +784,7 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Fiel
       <RealisticSoilLayer moisture={moisture} soilPh={soilPh} />
       
       {/* Environmental effects */}
-      <SoilCracks moisture={moisture} />
+      <CrackedSoilOverlay moisture={moisture} />
       <DustParticles moisture={moisture} temperature={temperature} />
       <HeatShimmer temperature={temperature} />
       <FrostCrystals temperature={temperature} />
