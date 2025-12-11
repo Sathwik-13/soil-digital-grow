@@ -11,89 +11,112 @@ interface FieldProps {
   humidity: number;
 }
 
-// Soil cracks component for low moisture
+// Realistic dried mud cracks - polygon web pattern
 const SoilCracks = ({ moisture }: { moisture: number }) => {
   const crackIntensity = useMemo(() => Math.max(0, (20 - moisture) / 20), [moisture]);
   
-  // Use a seed-based approach for consistent crack positions
-  const cracks = useMemo(() => {
-    if (crackIntensity <= 0) return [];
-    const crackCount = Math.floor(crackIntensity * 25) + 10;
-    const result = [];
+  // Generate polygon cell centers and create cracks between them
+  const crackNetwork = useMemo(() => {
+    if (crackIntensity <= 0) return { lines: [], polygons: [] };
     
-    for (let i = 0; i < crackCount; i++) {
-      // Create main crack
-      const x = ((i * 7.3) % 8) - 4;
-      const z = ((i * 5.7) % 8) - 4;
-      result.push({
-        x,
-        z,
-        rotation: (i * 0.7) % Math.PI,
-        length: 0.8 + (i % 5) * 0.4,
-        width: 0.08 + (i % 3) * 0.04,
-        isMain: true,
+    // Create cell centers for Voronoi-like pattern
+    const cellCount = 25 + Math.floor(crackIntensity * 15);
+    const cells: { x: number; z: number }[] = [];
+    
+    for (let i = 0; i < cellCount; i++) {
+      cells.push({
+        x: ((i * 3.7 + Math.sin(i * 2.3) * 2) % 9) - 4.5,
+        z: ((i * 2.9 + Math.cos(i * 1.7) * 2) % 9) - 4.5,
       });
-      
-      // Add branching cracks
-      if (i % 2 === 0) {
-        result.push({
-          x: x + 0.3,
-          z: z + 0.2,
-          rotation: ((i * 0.7) % Math.PI) + Math.PI / 4,
-          length: 0.4 + (i % 3) * 0.2,
-          width: 0.05,
-          isMain: false,
-        });
+    }
+    
+    // Create crack lines between nearby cells
+    const lines: { start: { x: number; z: number }; end: { x: number; z: number }; width: number }[] = [];
+    
+    for (let i = 0; i < cells.length; i++) {
+      for (let j = i + 1; j < cells.length; j++) {
+        const dx = cells[j].x - cells[i].x;
+        const dz = cells[j].z - cells[i].z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        
+        // Connect nearby cells with cracks
+        if (dist < 2.0 && dist > 0.3) {
+          // Midpoint between cells (where crack forms)
+          const midX = (cells[i].x + cells[j].x) / 2;
+          const midZ = (cells[i].z + cells[j].z) / 2;
+          
+          // Perpendicular crack line
+          const perpX = -dz / dist;
+          const perpZ = dx / dist;
+          const crackLen = dist * 0.6 + 0.2;
+          
+          lines.push({
+            start: { x: midX - perpX * crackLen / 2, z: midZ - perpZ * crackLen / 2 },
+            end: { x: midX + perpX * crackLen / 2, z: midZ + perpZ * crackLen / 2 },
+            width: 0.03 + (i % 3) * 0.02,
+          });
+        }
       }
     }
-    return result;
+    
+    return { lines, cells };
   }, [crackIntensity]);
 
   if (crackIntensity <= 0) return null;
 
   return (
-    <group position={[0, 0, 0]}>
-      {cracks.map((crack, i) => (
-        <group key={i}>
-          {/* Dark crack base - visible depression */}
-          <mesh
-            position={[crack.x, -0.44, crack.z]}
-            rotation={[-Math.PI / 2, 0, crack.rotation]}
-          >
-            <planeGeometry args={[crack.length, crack.width * 1.5]} />
-            <meshBasicMaterial 
-              color="#0a0503"
-              transparent
-              opacity={0.95}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-          {/* Lighter edge highlight */}
-          <mesh
-            position={[crack.x, -0.43, crack.z]}
-            rotation={[-Math.PI / 2, 0, crack.rotation]}
-          >
-            <planeGeometry args={[crack.length + 0.1, crack.width * 2.5]} />
-            <meshBasicMaterial 
-              color="#3d2914"
-              transparent
-              opacity={0.6 * crackIntensity}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        </group>
-      ))}
+    <group position={[0, 0.01, 0]}>
+      {/* Main crack lines */}
+      {crackNetwork.lines.map((line, i) => {
+        const dx = line.end.x - line.start.x;
+        const dz = line.end.z - line.start.z;
+        const length = Math.sqrt(dx * dx + dz * dz);
+        const angle = Math.atan2(dz, dx);
+        const midX = (line.start.x + line.end.x) / 2;
+        const midZ = (line.start.z + line.end.z) / 2;
+        
+        return (
+          <group key={i}>
+            {/* Dark crack depth */}
+            <mesh
+              position={[midX, -0.42, midZ]}
+              rotation={[-Math.PI / 2, 0, -angle]}
+            >
+              <planeGeometry args={[length, line.width * 2 * crackIntensity]} />
+              <meshBasicMaterial 
+                color="#0a0402"
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+            {/* Crack edge shadow */}
+            <mesh
+              position={[midX, -0.41, midZ]}
+              rotation={[-Math.PI / 2, 0, -angle]}
+            >
+              <planeGeometry args={[length + 0.05, line.width * 4 * crackIntensity]} />
+              <meshBasicMaterial 
+                color="#2d1a0f"
+                transparent
+                opacity={0.7}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+          </group>
+        );
+      })}
       
-      {/* Add 3D crack depth effect using boxes */}
-      {cracks.filter(c => c.isMain).slice(0, 8).map((crack, i) => (
+      {/* Add raised polygon edges to simulate lifted soil chunks */}
+      {crackNetwork.cells.slice(0, Math.floor(crackNetwork.cells.length * crackIntensity)).map((cell, i) => (
         <mesh
-          key={`3d-${i}`}
-          position={[crack.x, -0.52, crack.z]}
-          rotation={[0, crack.rotation, 0]}
+          key={`cell-${i}`}
+          position={[cell.x, -0.45, cell.z]}
+          rotation={[-Math.PI / 2, 0, i * 0.5]}
         >
-          <boxGeometry args={[crack.length * 0.8, 0.1, crack.width * 0.8]} />
+          <circleGeometry args={[0.15 + (i % 3) * 0.1, 5 + (i % 3)]} />
           <meshStandardMaterial 
-            color="#1a0a05"
+            color="#5c3d2a"
+            transparent
+            opacity={0.3 * crackIntensity}
             roughness={1}
           />
         </mesh>
