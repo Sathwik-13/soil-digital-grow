@@ -17,6 +17,7 @@ import FieldPhotoAnalysis from "@/components/FieldPhotoAnalysis";
 import MetricGraph from "@/components/MetricGraph";
 import PlantGrowthResults from "@/components/PlantGrowthResults";
 import CropSelector from "@/components/CropSelector";
+import CropTimeline from "@/components/CropTimeline";
 import { CROP_DATA, getCurrentStage, calculatePlantHealth  } from "@/data/cropData";
 import heroImage from "@/assets/hero-farm-fields.jpg";
 import tomatoImage from "@/assets/tomato-field.jpg";
@@ -893,7 +894,10 @@ const Dashboard = () => {
           onWeekChange={setCurrentWeek}
         />
 
-        {/* Yield Prediction Chart */}
+        {/* Crop Timeline Visualization */}
+        <CropTimeline selectedCrop={selectedCrop} currentWeek={currentWeek} />
+
+
         <Card className="mb-8 animate-fade-in">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
