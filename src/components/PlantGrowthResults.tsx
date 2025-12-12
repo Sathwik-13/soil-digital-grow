@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Play, Pause, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Download, Play, Pause, RefreshCw, Leaf } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import * as THREE from "three";
+import { 
+  CROP_DATA, 
+  getCurrentStage, 
+  calculatePlantHealth, 
+  getExpectedHeight,
+  getOverallProgress 
+} from "@/data/cropData";
 
 interface PlantGrowthResultsProps {
   moisture: number;
@@ -11,6 +18,9 @@ interface PlantGrowthResultsProps {
   soilPh: number;
   lightIntensity: number;
   humidity: number;
+  selectedCrop: string;
+  currentWeek: number;
+  onWeekChange: (week: number) => void;
 }
 
 interface GrowthSnapshot {
@@ -19,6 +29,8 @@ interface GrowthSnapshot {
   height: number;
   image: string;
   weekNumber: number;
+  stageName: string;
+  cropName: string;
 }
 
 const PlantGrowthResults = ({ 
@@ -26,27 +38,25 @@ const PlantGrowthResults = ({
   temperature, 
   soilPh, 
   lightIntensity,
-  humidity 
+  humidity,
+  selectedCrop,
+  currentWeek,
+  onWeekChange
 }: PlantGrowthResultsProps) => {
   const { toast } = useToast();
   const [snapshots, setSnapshots] = useState<GrowthSnapshot[]>([]);
   const [isTracking, setIsTracking] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const calculatePlantHealth = () => {
-    let health = 100;
-    if (moisture < 30) health -= (30 - moisture);
-    if (moisture > 70) health -= (moisture - 70) * 0.5;
-    if (temperature < 20) health -= (20 - temperature) * 2;
-    if (temperature > 35) health -= (temperature - 35) * 3;
-    if (soilPh < 6) health -= (6 - soilPh) * 10;
-    if (soilPh > 7.5) health -= (soilPh - 7.5) * 10;
-    if (lightIntensity < 50) health -= (50 - lightIntensity) * 0.3;
-    return Math.max(0, Math.min(100, health));
-  };
+  const crop = CROP_DATA[selectedCrop];
 
-  const generatePlantImage = (health: number, height: number): string => {
-    if (!canvasRef.current) return "";
+  const generatePlantImage = (
+    health: number, 
+    height: number, 
+    weekNumber: number,
+    stageName: string
+  ): string => {
+    if (!canvasRef.current || !crop) return "";
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
@@ -55,105 +65,195 @@ const PlantGrowthResults = ({
     canvas.width = 300;
     canvas.height = 400;
 
-    // Background
+    // Background gradient based on time of growth
     const gradient = ctx.createLinearGradient(0, 0, 0, 400);
     gradient.addColorStop(0, "#87CEEB");
     gradient.addColorStop(1, "#90EE90");
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 300, 400);
 
-    // Soil
-    ctx.fillStyle = `rgb(${102 - moisture * 0.3}, ${66 - moisture * 0.2}, ${33 - moisture * 0.1})`;
+    // Soil - darker when moist
+    const soilDarkness = moisture * 0.5;
+    ctx.fillStyle = `rgb(${102 - soilDarkness * 0.3}, ${66 - soilDarkness * 0.2}, ${33 - soilDarkness * 0.1})`;
     ctx.fillRect(0, 300, 300, 100);
 
-    // Plant
-    const healthColor = `rgb(${255 - health * 1.5}, ${100 + health * 1.5}, 50)`;
-    const plantHeight = 200 * (height / 100);
+    // Plant color based on health and crop type
+    const healthFactor = health / 100;
+    let plantColor: string;
+    let fruitColor: string;
+    
+    if (selectedCrop === "tomato") {
+      plantColor = `rgb(${60 - healthFactor * 20}, ${100 + healthFactor * 80}, ${40})`;
+      fruitColor = "#e53935";
+    } else if (selectedCrop === "chili") {
+      plantColor = `rgb(${50 - healthFactor * 15}, ${90 + healthFactor * 70}, ${35})`;
+      fruitColor = "#d32f2f";
+    } else {
+      plantColor = `rgb(${55 - healthFactor * 18}, ${95 + healthFactor * 75}, ${38})`;
+      fruitColor = "#5e35b1";
+    }
+
+    const plantHeight = Math.min(200, height * 1.5);
     
     // Stem
     ctx.fillStyle = "#3d5a2c";
-    ctx.fillRect(140, 300 - plantHeight, 20, plantHeight);
+    const stemWidth = 8 + (weekNumber * 0.5);
+    ctx.fillRect(150 - stemWidth/2, 300 - plantHeight, stemWidth, plantHeight);
 
     // Leaves
-    ctx.fillStyle = healthColor;
-    const leafCount = Math.floor(3 + (height / 25));
+    ctx.fillStyle = plantColor;
+    const leafCount = Math.floor(2 + (height / 15));
     for (let i = 0; i < leafCount; i++) {
       const y = 300 - (plantHeight * (i + 1) / (leafCount + 1));
+      const leafSize = 15 + (height / 10);
+      
+      // Left leaf
       ctx.beginPath();
-      ctx.ellipse(120, y, 30, 15, -Math.PI / 4, 0, 2 * Math.PI);
+      ctx.ellipse(150 - 20, y, leafSize, leafSize * 0.5, -Math.PI / 4, 0, 2 * Math.PI);
       ctx.fill();
+      
+      // Right leaf
       ctx.beginPath();
-      ctx.ellipse(180, y, 30, 15, Math.PI / 4, 0, 2 * Math.PI);
+      ctx.ellipse(150 + 20, y, leafSize, leafSize * 0.5, Math.PI / 4, 0, 2 * Math.PI);
       ctx.fill();
     }
 
-    // Top leaves
+    // Top foliage
     ctx.beginPath();
-    ctx.arc(150, 300 - plantHeight, 25, 0, 2 * Math.PI);
+    ctx.arc(150, 300 - plantHeight, 20 + (height / 8), 0, 2 * Math.PI);
     ctx.fill();
 
-    // Info text
-    ctx.fillStyle = "#000";
-    ctx.font = "bold 14px Arial";
-    ctx.fillText(`Health: ${health.toFixed(0)}%`, 10, 20);
-    ctx.fillText(`Height: ${height.toFixed(0)}cm`, 10, 40);
+    // Draw fruits/vegetables if in fruiting or harvesting stage
+    const stageIndex = crop.stages.findIndex(s => s.name === stageName);
+    if (stageIndex >= 3) { // Fruit development or harvesting
+      const fruitCount = Math.min(8, 2 + Math.floor((weekNumber - 10) / 2));
+      ctx.fillStyle = fruitColor;
+      
+      for (let i = 0; i < fruitCount; i++) {
+        const x = 130 + Math.random() * 40;
+        const y = 300 - plantHeight * 0.3 - Math.random() * plantHeight * 0.5;
+        
+        if (selectedCrop === "tomato") {
+          // Round tomatoes
+          ctx.beginPath();
+          ctx.arc(x, y, 8 + Math.random() * 4, 0, 2 * Math.PI);
+          ctx.fill();
+        } else if (selectedCrop === "chili") {
+          // Elongated chilies
+          ctx.beginPath();
+          ctx.ellipse(x, y, 3, 12 + Math.random() * 5, Math.PI / 6, 0, 2 * Math.PI);
+          ctx.fill();
+        } else {
+          // Oval brinjals
+          ctx.beginPath();
+          ctx.ellipse(x, y, 6 + Math.random() * 3, 10 + Math.random() * 5, 0, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      }
+    }
+
+    // Flowers if in flowering stage
+    if (stageIndex === 2) {
+      const flowerCount = Math.min(6, 2 + weekNumber - 8);
+      for (let i = 0; i < flowerCount; i++) {
+        const x = 130 + Math.random() * 40;
+        const y = 300 - plantHeight * 0.4 - Math.random() * plantHeight * 0.4;
+        
+        ctx.fillStyle = selectedCrop === "brinjal" ? "#9c27b0" : "#ffeb3b";
+        ctx.beginPath();
+        ctx.arc(x, y, 5, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+
+    // Info overlay
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillRect(5, 5, 140, 85);
+    
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 12px Arial";
+    ctx.fillText(`${crop.icon} ${crop.name}`, 10, 22);
+    ctx.font = "11px Arial";
+    ctx.fillText(`Week ${weekNumber} of ${crop.totalDuration}`, 10, 38);
+    ctx.fillText(`Stage: ${stageName}`, 10, 54);
+    ctx.fillText(`Health: ${health.toFixed(0)}%`, 10, 70);
+    ctx.fillText(`Height: ${height.toFixed(0)} cm`, 10, 86);
 
     return canvas.toDataURL("image/png");
   };
 
   useEffect(() => {
-    if (!isTracking) return;
+    if (!isTracking || !crop) return;
 
     const interval = setInterval(() => {
-      const health = calculatePlantHealth();
-      const baseHeight = 20;
-      const growthFactor = (health / 100) * (lightIntensity / 100);
-      const weekNumber = snapshots.length + 1;
-      const currentHeight = baseHeight + (weekNumber * 5 * growthFactor);
+      const newWeek = Math.min(currentWeek + 1, crop.totalDuration);
+      onWeekChange(newWeek);
       
-      const image = generatePlantImage(health, Math.min(currentHeight, 100));
+      const health = calculatePlantHealth(selectedCrop, moisture, temperature, soilPh, humidity, lightIntensity);
+      const height = getExpectedHeight(selectedCrop, newWeek);
+      const stage = getCurrentStage(selectedCrop, newWeek);
+      const stageName = stage?.name || "Harvesting Complete";
+      
+      const image = generatePlantImage(health, height, newWeek, stageName);
       
       const newSnapshot: GrowthSnapshot = {
         timestamp: new Date().toISOString(),
         health,
-        height: Math.min(currentHeight, 100),
+        height,
         image,
-        weekNumber,
+        weekNumber: newWeek,
+        stageName,
+        cropName: crop.name,
       };
 
       setSnapshots((prev) => [...prev, newSnapshot]);
 
       toast({
-        title: "Week " + weekNumber + " Growth Captured",
-        description: `Plant health: ${health.toFixed(0)}%, Height: ${Math.min(currentHeight, 100).toFixed(0)}cm`,
+        title: `${crop.icon} Week ${newWeek} - ${stageName}`,
+        description: `${crop.name} health: ${health.toFixed(0)}%, Height: ${height.toFixed(0)}cm`,
       });
-    }, 10000); // Capture every 10 seconds = 1 week of growth
+
+      // Stop if reached end
+      if (newWeek >= crop.totalDuration) {
+        setIsTracking(false);
+        toast({
+          title: `${crop.icon} Growth Cycle Complete!`,
+          description: `${crop.name} has completed its ${crop.totalMonths}-month growth cycle`,
+        });
+      }
+    }, 3000); // 3 seconds = 1 week of growth
 
     return () => clearInterval(interval);
-  }, [isTracking, moisture, temperature, soilPh, lightIntensity, humidity, snapshots.length]);
+  }, [isTracking, currentWeek, moisture, temperature, soilPh, lightIntensity, humidity, selectedCrop, crop]);
 
   const downloadResults = () => {
     snapshots.forEach((snapshot, index) => {
       const link = document.createElement("a");
       link.href = snapshot.image;
-      link.download = `plant-growth-${index + 1}-${new Date(snapshot.timestamp).toISOString()}.png`;
+      link.download = `${snapshot.cropName.toLowerCase()}-week${snapshot.weekNumber}-${new Date(snapshot.timestamp).toISOString()}.png`;
       link.click();
     });
 
     toast({
       title: "Download Complete",
-      description: `Downloaded ${snapshots.length} growth images`,
+      description: `Downloaded ${snapshots.length} growth images for ${crop?.name}`,
     });
   };
 
   const resetTracking = () => {
     setSnapshots([]);
     setIsTracking(false);
+    onWeekChange(1);
     toast({
       title: "Tracking Reset",
-      description: "All growth snapshots cleared",
+      description: `${crop?.name} growth tracking reset to Week 1`,
     });
   };
+
+  if (!crop) return null;
+
+  const currentStage = getCurrentStage(selectedCrop, currentWeek);
+  const progress = getOverallProgress(selectedCrop, currentWeek);
 
   return (
     <>
@@ -161,28 +261,37 @@ const PlantGrowthResults = ({
       <Card className="border-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            📊 Plant Growth Results
+            <Leaf className="w-5 h-5 text-primary" />
+            <span className="text-xl">{crop.icon}</span>
+            {crop.name} Growth Simulation
           </CardTitle>
           <CardDescription>
-            Track plant growth over time - Each snapshot represents 1 week of growth
+            Simulate {crop.totalDuration}-week growth cycle • Each 3 seconds = 1 week
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="outline">Week {currentWeek}/{crop.totalDuration}</Badge>
+            <Badge variant="secondary">{currentStage?.name || "Complete"}</Badge>
+            <Badge variant="default" className="ml-auto">{Math.round(progress)}% Complete</Badge>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
             <Button
               onClick={() => setIsTracking(!isTracking)}
               variant={isTracking ? "destructive" : "default"}
               className="gap-2"
+              disabled={currentWeek >= crop.totalDuration}
             >
               {isTracking ? (
                 <>
                   <Pause className="w-4 h-4" />
-                  Stop Tracking
+                  Pause Simulation
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4" />
-                  Start Tracking
+                  {currentWeek >= crop.totalDuration ? "Cycle Complete" : "Start Simulation"}
                 </>
               )}
             </Button>
@@ -190,7 +299,7 @@ const PlantGrowthResults = ({
               <>
                 <Button onClick={downloadResults} variant="secondary" className="gap-2">
                   <Download className="w-4 h-4" />
-                  Download All ({snapshots.length})
+                  Download ({snapshots.length})
                 </Button>
                 <Button onClick={resetTracking} variant="outline" className="gap-2">
                   <RefreshCw className="w-4 h-4" />
@@ -203,30 +312,28 @@ const PlantGrowthResults = ({
           {isTracking && (
             <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
               <p className="text-sm font-medium">
-                🟢 Recording growth snapshots every 10 seconds (1 week of growth each)...
+                🟢 Simulating {crop.name} growth - Week {currentWeek} ({currentStage?.name})
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Next snapshot: Week {snapshots.length + 1}
+                Next: Week {Math.min(currentWeek + 1, crop.totalDuration)} • {crop.totalDuration - currentWeek} weeks remaining
               </p>
             </div>
           )}
 
           {snapshots.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto">
               {snapshots.map((snapshot, index) => (
                 <div key={index} className="space-y-2">
                   <img
                     src={snapshot.image}
-                    alt={`Growth snapshot ${index + 1}`}
+                    alt={`${snapshot.cropName} week ${snapshot.weekNumber}`}
                     className="w-full rounded-lg border-2 border-primary/20 shadow-lg"
                   />
                   <div className="text-xs space-y-1">
                     <p className="font-semibold text-primary">Week {snapshot.weekNumber}</p>
+                    <p className="text-muted-foreground">{snapshot.stageName}</p>
                     <p>Health: {snapshot.health.toFixed(0)}%</p>
-                    <p>Height: {snapshot.height.toFixed(0)}cm</p>
-                    <p className="text-muted-foreground">
-                      Captured: {new Date(snapshot.timestamp).toLocaleTimeString()}
-                    </p>
+                    <p>Height: {snapshot.height.toFixed(0)} cm</p>
                   </div>
                 </div>
               ))}
@@ -235,9 +342,14 @@ const PlantGrowthResults = ({
 
           {snapshots.length === 0 && !isTracking && (
             <div className="text-center p-8 text-muted-foreground">
-              <p>No growth data recorded yet.</p>
-              <p className="text-sm mt-2">Click "Start Tracking" to begin recording weekly plant growth.</p>
-              <p className="text-xs mt-1">Each 10-second interval = 1 week of growth</p>
+              <p className="text-2xl mb-2">{crop.icon}</p>
+              <p>Ready to simulate {crop.name} growth</p>
+              <p className="text-sm mt-2">
+                Click "Start Simulation" to watch {crop.totalMonths}-month growth cycle
+              </p>
+              <p className="text-xs mt-1">
+                Duration: {crop.totalDuration} weeks | Yield: {crop.yieldPerHectare}
+              </p>
             </div>
           )}
         </CardContent>
