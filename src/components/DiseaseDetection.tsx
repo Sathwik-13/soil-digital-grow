@@ -118,6 +118,19 @@ const DiseaseDetection = ({
   const currentStage = getCurrentStage(selectedCrop, currentWeek);
   const diseases = CROP_DISEASES[selectedCrop] || [];
 
+  const getConditionLabel = (key: string): string => {
+    const labels: Record<string, string> = {
+      highMoisture: "High soil moisture",
+      lowMoisture: "Low soil moisture",
+      highTemp: "High temperature",
+      lowTemp: "Low temperature",
+      highHumidity: "High humidity",
+      wrongPh: "Suboptimal pH",
+      lowLight: "Low light intensity"
+    };
+    return labels[key] || key;
+  };
+
   const detectedDiseases = useMemo(() => {
     if (!currentStage || !crop) return [];
 
@@ -163,20 +176,7 @@ const DiseaseDetection = ({
         prevention: disease.prevention
       };
     }).sort((a, b) => b.riskScore - a.riskScore);
-  }, [selectedCrop, currentWeek, moisture, temperature, humidity, soilPh, lightIntensity, diseases, currentStage]);
-
-  const getConditionLabel = (key: string): string => {
-    const labels: Record<string, string> = {
-      highMoisture: "High soil moisture",
-      lowMoisture: "Low soil moisture",
-      highTemp: "High temperature",
-      lowTemp: "Low temperature",
-      highHumidity: "High humidity",
-      wrongPh: "Suboptimal pH",
-      lowLight: "Low light intensity"
-    };
-    return labels[key] || key;
-  };
+  }, [selectedCrop, currentWeek, moisture, temperature, humidity, soilPh, lightIntensity, diseases, currentStage, getConditionLabel]);
 
   const getRiskColor = (level: string) => {
     switch (level) {
