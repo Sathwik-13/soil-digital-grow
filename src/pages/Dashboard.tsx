@@ -13,7 +13,7 @@ import VirtualField3D from "@/components/VirtualField3D";
 import NutrientAnalysis from "@/components/NutrientAnalysis";
 import PestDetection from "@/components/PestDetection";
 import YieldPrediction from "@/components/YieldPrediction";
-import FieldPhotoAnalysis from "@/components/FieldPhotoAnalysis";
+
 import MetricGraph from "@/components/MetricGraph";
 import PlantGrowthResults from "@/components/PlantGrowthResults";
 import CropSelector from "@/components/CropSelector";
@@ -1151,7 +1151,7 @@ const Dashboard = () => {
             selectedCrop={selectedCrop}
             currentWeek={currentWeek}
           />
-          <FieldPhotoAnalysis />
+          
         </div>
       </div>
 
