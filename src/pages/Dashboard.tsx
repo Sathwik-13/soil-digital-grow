@@ -16,10 +16,12 @@ import YieldPrediction from "@/components/YieldPrediction";
 import FieldPhotoAnalysis from "@/components/FieldPhotoAnalysis";
 import MetricGraph from "@/components/MetricGraph";
 import PlantGrowthResults from "@/components/PlantGrowthResults";
+import CropSelector from "@/components/CropSelector";
+import { CROP_DATA, getCurrentStage, calculatePlantHealth  } from "@/data/cropData";
 import heroImage from "@/assets/hero-farm-fields.jpg";
-import wheatImage from "@/assets/wheat-field.jpg";
-import riceImage from "@/assets/rice-field.jpg";
-import cornImage from "@/assets/corn-field.jpg";
+import tomatoImage from "@/assets/tomato-field.jpg";
+import chiliImage from "@/assets/chili-field.jpg";
+import brinjalImage from "@/assets/brinjal-field.jpg";
 
 interface SensorData {
   timestamp: string;
@@ -54,6 +56,12 @@ const Dashboard = () => {
   const [phosphorus, setPhosphorus] = useState(70);
   const [potassium, setPotassium] = useState(60);
   const [activeGraph, setActiveGraph] = useState<string | null>(null);
+  const [selectedCrop, setSelectedCrop] = useState("tomato");
+  const [currentWeek, setCurrentWeek] = useState(1);
+
+  const crop = CROP_DATA[selectedCrop];
+  const currentStage = getCurrentStage(selectedCrop, currentWeek);
+  const cropImages: Record<string, string> = { tomato: tomatoImage, chili: chiliImage, brinjal: brinjalImage };
 
   // Apply realistic environmental interdependencies
   const applyEnvironmentalEffects = (
