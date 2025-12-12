@@ -254,31 +254,31 @@ const Dashboard = () => {
 
   const crops = [
     {
-      name: "Wheat",
-      image: wheatImage,
-      health: 92,
-      yield: "4.8 tons/hectare",
+      name: "Tomato",
+      image: tomatoImage,
+      health: calculatePlantHealth("tomato", moisture, temperature, soilPh, humidity, lightIntensity),
+      yield: CROP_DATA.tomato.yieldPerHectare,
       lastSeason: "+8%",
-      harvest: "Aug 15, 2025",
-      status: "Excellent",
+      harvest: `${CROP_DATA.tomato.totalDuration} weeks`,
+      status: calculatePlantHealth("tomato", moisture, temperature, soilPh, humidity, lightIntensity) > 85 ? "Excellent" : "Good",
     },
     {
-      name: "Rice",
-      image: riceImage,
-      health: 88,
-      yield: "5.2 tons/hectare",
+      name: "Chili",
+      image: chiliImage,
+      health: calculatePlantHealth("chili", moisture, temperature, soilPh, humidity, lightIntensity),
+      yield: CROP_DATA.chili.yieldPerHectare,
       lastSeason: "+5%",
-      harvest: "Sep 2, 2025",
-      status: "Good",
+      harvest: `${CROP_DATA.chili.totalDuration} weeks`,
+      status: calculatePlantHealth("chili", moisture, temperature, soilPh, humidity, lightIntensity) > 85 ? "Excellent" : "Good",
     },
     {
-      name: "Corn",
-      image: cornImage,
-      health: 85,
-      yield: "6.1 tons/hectare",
+      name: "Brinjal",
+      image: brinjalImage,
+      health: calculatePlantHealth("brinjal", moisture, temperature, soilPh, humidity, lightIntensity),
+      yield: CROP_DATA.brinjal.yieldPerHectare,
       lastSeason: "+12%",
-      harvest: "Aug 28, 2025",
-      status: "Good",
+      harvest: `${CROP_DATA.brinjal.totalDuration} weeks`,
+      status: calculatePlantHealth("brinjal", moisture, temperature, soilPh, humidity, lightIntensity) > 85 ? "Excellent" : "Good",
     },
   ];
 
@@ -888,6 +888,9 @@ const Dashboard = () => {
           soilPh={soilPh}
           lightIntensity={lightIntensity}
           humidity={humidity}
+          selectedCrop={selectedCrop}
+          currentWeek={currentWeek}
+          onWeekChange={setCurrentWeek}
         />
 
         {/* Yield Prediction Chart */}
@@ -1132,6 +1135,9 @@ const Dashboard = () => {
             nitrogen={nitrogen}
             phosphorus={phosphorus}
             potassium={potassium}
+            humidity={humidity}
+            selectedCrop={selectedCrop}
+            currentWeek={currentWeek}
           />
           <FieldPhotoAnalysis />
         </div>
