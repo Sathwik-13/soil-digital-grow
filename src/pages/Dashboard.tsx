@@ -18,6 +18,7 @@ import MetricGraph from "@/components/MetricGraph";
 import PlantGrowthResults from "@/components/PlantGrowthResults";
 import CropSelector from "@/components/CropSelector";
 import CropTimeline from "@/components/CropTimeline";
+import DiseaseDetection from "@/components/DiseaseDetection";
 import { CROP_DATA, getCurrentStage, calculatePlantHealth  } from "@/data/cropData";
 import heroImage from "@/assets/hero-farm-fields.jpg";
 import tomatoImage from "@/assets/tomato-field.jpg";
@@ -904,6 +905,17 @@ const Dashboard = () => {
 
         {/* Crop Timeline Visualization */}
         <CropTimeline selectedCrop={selectedCrop} currentWeek={currentWeek} />
+
+        {/* Disease Detection */}
+        <DiseaseDetection
+          selectedCrop={selectedCrop}
+          currentWeek={currentWeek}
+          moisture={moisture}
+          temperature={temperature}
+          humidity={humidity}
+          soilPh={soilPh}
+          lightIntensity={lightIntensity}
+        />
 
 
         <Card className="mb-8 animate-fade-in">
