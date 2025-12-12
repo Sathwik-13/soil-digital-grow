@@ -371,6 +371,14 @@ const Dashboard = () => {
           ))}
         </div>
 
+        {/* Crop Selector */}
+        <CropSelector
+          selectedCrop={selectedCrop}
+          onCropChange={setSelectedCrop}
+          currentWeek={currentWeek}
+          onWeekChange={setCurrentWeek}
+        />
+
         {/* Export Button */}
         <div className="flex justify-end mb-6">
           <Button onClick={exportToExcel} className="gap-2">
