@@ -12,6 +12,44 @@ serve(async (req) => {
 
   try {
     const { image } = await req.json();
+
+    // Input validation
+    if (!image || typeof image !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Invalid image data" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate data URL format and size
+    if (image.startsWith("data:")) {
+      const base64Data = image.split(",")[1];
+      if (!base64Data) {
+        return new Response(
+          JSON.stringify({ error: "Invalid image data format" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      const sizeInBytes = (base64Data.length * 3) / 4;
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      
+      if (sizeInBytes > maxSize) {
+        return new Response(
+          JSON.stringify({ error: "Image too large. Maximum 5MB allowed" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // Validate image format
+      if (!image.match(/^data:image\/(jpeg|jpg|png|webp|gif);base64,/)) {
+        return new Response(
+          JSON.stringify({ error: "Invalid image format. Use JPEG, PNG, WebP, or GIF" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
