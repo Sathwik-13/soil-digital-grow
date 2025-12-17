@@ -12,6 +12,45 @@ serve(async (req) => {
 
   try {
     const { messages } = await req.json();
+    
+    // Input validation
+    if (!Array.isArray(messages)) {
+      return new Response(
+        JSON.stringify({ error: "Messages must be an array" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (messages.length > 50) {
+      return new Response(
+        JSON.stringify({ error: "Too many messages. Maximum 50 messages allowed" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    for (const msg of messages) {
+      if (!msg.role || !msg.content) {
+        return new Response(
+          JSON.stringify({ error: "Invalid message format" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      if (!["user", "assistant", "system"].includes(msg.role)) {
+        return new Response(
+          JSON.stringify({ error: "Invalid message role" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      if (typeof msg.content !== "string" || msg.content.length > 10000) {
+        return new Response(
+          JSON.stringify({ error: "Message content too large. Max 10KB per message" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
