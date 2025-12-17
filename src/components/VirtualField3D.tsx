@@ -669,45 +669,25 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
     return 8;
   }, [temperature, humidity, todayRainfall]);
 
-  // Darken scene when raining
-  const rainDarkening = useMemo(() => Math.min(1, todayRainfall / 20), [todayRainfall]);
-
   return (
     <>
       <Sky 
-        sunPosition={[100 * sunIntensity * (1 - rainDarkening * 0.5), 20 + 30 * sunIntensity * (1 - rainDarkening * 0.3), 100]} 
+        sunPosition={[100 * sunIntensity, 20 + 30 * sunIntensity, 100]} 
         turbidity={skyTurbidity}
-        rayleigh={0.5 + rainDarkening * 0.5}
+        rayleigh={0.5}
       />
       
-      {/* Normal humidity clouds */}
-      {humidity > 70 && todayRainfall < 5 && (
+      {humidity > 70 && (
         <>
           <Cloud position={[-4, 3, -4]} speed={0.2} opacity={0.3} />
           <Cloud position={[4, 3.5, -3]} speed={0.15} opacity={0.25} />
         </>
       )}
 
-      {/* Dark rain clouds when rainfall is significant */}
-      {todayRainfall > 0 && (
-        <>
-          <Cloud position={[-3, 2.8, -2]} speed={0.3} opacity={0.5 + rainDarkening * 0.3} color="#4a5568" />
-          <Cloud position={[2, 3, 0]} speed={0.25} opacity={0.5 + rainDarkening * 0.3} color="#4a5568" />
-          <Cloud position={[0, 3.2, -3]} speed={0.2} opacity={0.6 + rainDarkening * 0.2} color="#2d3748" />
-          {todayRainfall > 10 && (
-            <>
-              <Cloud position={[-2, 2.5, 2]} speed={0.35} opacity={0.7} color="#1a202c" />
-              <Cloud position={[3, 2.7, 3]} speed={0.3} opacity={0.65} color="#2d3748" />
-              <Cloud position={[0, 2.6, 0]} speed={0.25} opacity={0.75} color="#1a202c" />
-            </>
-          )}
-        </>
-      )}
-
-      <ambientLight intensity={(0.4 + sunIntensity * 0.3) * (1 - rainDarkening * 0.4)} />
+      <ambientLight intensity={0.4 + sunIntensity * 0.3} />
       <directionalLight 
         position={[10, 10, 5]} 
-        intensity={sunIntensity * 1.2 * (1 - rainDarkening * 0.5)}
+        intensity={sunIntensity * 1.2}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-far={50}
@@ -716,7 +696,7 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
         shadow-camera-top={10}
         shadow-camera-bottom={-10}
       />
-      <hemisphereLight intensity={0.3 * (1 - rainDarkening * 0.3)} groundColor="#8B7355" />
+      <hemisphereLight intensity={0.3} groundColor="#8B7355" />
 
       <RealisticSoilLayer moisture={moisture} soilPh={soilPh} />
       
