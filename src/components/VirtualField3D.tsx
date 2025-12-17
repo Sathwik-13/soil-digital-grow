@@ -10,6 +10,8 @@ interface FieldProps {
   soilPh: number;
   lightIntensity: number;
   humidity: number;
+  todayRainfall: number;
+  totalRainfall: number;
 }
 
 // Realistic dried mud cracks using actual texture
@@ -290,7 +292,7 @@ const WaterPuddles = ({ moisture }: { moisture: number }) => {
 };
 
 // Status warning indicators floating above field
-const StatusIndicators = ({ moisture, temperature, soilPh, lightIntensity, humidity }: FieldProps) => {
+const StatusIndicators = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Omit<FieldProps, 'todayRainfall' | 'totalRainfall'>) => {
   const warnings = useMemo(() => {
     const w: { text: string; color: string; position: [number, number, number] }[] = [];
     
@@ -488,15 +490,22 @@ const RealisticPlant = ({
   );
 };
 
-const WaterDroplets = ({ moisture, humidity }: { moisture: number; humidity: number }) => {
+const WaterDroplets = ({ todayRainfall, totalRainfall }: { todayRainfall: number; totalRainfall: number }) => {
   const pointsRef = useRef<THREE.Points>(null);
   
-  const particleCount = useMemo(() => 
-    Math.floor((moisture / 100) * 150 + (humidity / 100) * 50),
-    [moisture, humidity]
-  );
+  // Only show rain droplets when there's actual rainfall
+  // Today's rainfall has more impact on droplet count, total rainfall adds some background effect
+  const particleCount = useMemo(() => {
+    if (todayRainfall <= 0 && totalRainfall <= 0) return 0;
+    // Scale: today's rainfall (0-50mm) maps to 0-200 particles
+    // Total rainfall adds a subtle background (0-200mm) maps to 0-50 particles
+    const todayDroplets = Math.floor((todayRainfall / 50) * 200);
+    const totalDroplets = Math.floor((totalRainfall / 200) * 50);
+    return Math.min(300, todayDroplets + totalDroplets);
+  }, [todayRainfall, totalRainfall]);
 
   const [positions, velocities] = useMemo(() => {
+    if (particleCount === 0) return [new Float32Array(0), new Float32Array(0)];
     const pos = new Float32Array(particleCount * 3);
     const vel = new Float32Array(particleCount * 3);
     
@@ -505,16 +514,18 @@ const WaterDroplets = ({ moisture, humidity }: { moisture: number; humidity: num
       pos[i * 3 + 1] = Math.random() * 3 - 0.3;
       pos[i * 3 + 2] = (Math.random() - 0.5) * 8;
       
+      // Droplet speed based on rainfall intensity
+      const speedFactor = 1 + (todayRainfall / 50) * 0.5;
       vel[i * 3] = (Math.random() - 0.5) * 0.01;
-      vel[i * 3 + 1] = -Math.random() * 0.02 - 0.01;
+      vel[i * 3 + 1] = (-Math.random() * 0.02 - 0.01) * speedFactor;
       vel[i * 3 + 2] = (Math.random() - 0.5) * 0.01;
     }
     
     return [pos, vel];
-  }, [particleCount]);
+  }, [particleCount, todayRainfall]);
 
   useFrame(() => {
-    if (pointsRef.current) {
+    if (pointsRef.current && particleCount > 0) {
       const pos = pointsRef.current.geometry.attributes.position.array as Float32Array;
       
       for (let i = 0; i < pos.length / 3; i++) {
@@ -533,8 +544,10 @@ const WaterDroplets = ({ moisture, humidity }: { moisture: number; humidity: num
     }
   });
 
+  if (particleCount === 0) return null;
+
   return (
-    <points ref={pointsRef} key={particleCount}>
+    <points ref={pointsRef} key={`rain-${particleCount}`}>
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
@@ -632,7 +645,7 @@ const SensorPole = ({ position, label, value }: { position: [number, number, num
   );
 };
 
-const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity }: FieldProps) => {
+const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall }: FieldProps) => {
   const plantHealth = useMemo(() => {
     let health = 100;
     if (moisture < 30) health -= (30 - moisture);
@@ -652,8 +665,9 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Fiel
   const skyTurbidity = useMemo(() => {
     if (temperature > 35) return 12; // Hazy hot day
     if (humidity > 80) return 10; // Humid/overcast
+    if (todayRainfall > 5) return 14; // Rainy/overcast
     return 8;
-  }, [temperature, humidity]);
+  }, [temperature, humidity, todayRainfall]);
 
   return (
     <>
@@ -702,7 +716,7 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Fiel
         humidity={humidity} 
       />
       
-      <WaterDroplets key={`${moisture}-${humidity}`} moisture={moisture} humidity={humidity} />
+      <WaterDroplets key={`${todayRainfall}-${totalRainfall}`} todayRainfall={todayRainfall} totalRainfall={totalRainfall} />
       <IrrigationSystem active={isIrrigating} />
 
       {/* Sensor poles */}
@@ -763,7 +777,7 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Fiel
   );
 };
 
-const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidity }: FieldProps) => {
+const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall }: FieldProps) => {
   return (
     <div className="w-full h-[600px] rounded-lg overflow-hidden border-2 border-primary/20 shadow-2xl bg-gradient-to-b from-sky-200 to-green-100">
       <Canvas
@@ -777,6 +791,8 @@ const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidit
           soilPh={soilPh}
           lightIntensity={lightIntensity}
           humidity={humidity}
+          todayRainfall={todayRainfall}
+          totalRainfall={totalRainfall}
         />
       </Canvas>
     </div>

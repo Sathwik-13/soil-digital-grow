@@ -867,6 +867,8 @@ const Dashboard = () => {
               soilPh={soilPh}
               lightIntensity={lightIntensity}
               humidity={humidity}
+              todayRainfall={todayRainfall}
+              totalRainfall={totalRainfall}
             />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               <Button onClick={() => setActiveGraph("moisture")} variant="outline" size="sm" className="gap-2">
