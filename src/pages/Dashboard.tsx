@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Download, Droplets, Thermometer, Wind, Sun, CloudRain, Gauge, Zap, Navigation, BarChart3, Sprout, TrendingUp, Calendar, Leaf } from "lucide-react";
+import { Download, Droplets, Thermometer, Wind, Sun, CloudRain, Gauge, Zap, Navigation, BarChart3, Sprout, TrendingUp, Calendar, Leaf, FileText } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,7 @@ import CropSelector from "@/components/CropSelector";
 import CropTimeline from "@/components/CropTimeline";
 import DiseaseDetection from "@/components/DiseaseDetection";
 import { CROP_DATA, getCurrentStage, calculatePlantHealth  } from "@/data/cropData";
+import { generateResearchPaperPDF } from "@/utils/researchPaperPDF";
 import heroImage from "@/assets/hero-farm-fields.jpg";
 import tomatoImage from "@/assets/tomato-field.jpg";
 import chiliImage from "@/assets/chili-field.jpg";
@@ -380,8 +381,22 @@ const Dashboard = () => {
           onWeekChange={setCurrentWeek}
         />
 
-        {/* Export Button */}
-        <div className="flex justify-end mb-6">
+        {/* Export Buttons */}
+        <div className="flex justify-end gap-3 mb-6">
+          <Button 
+            onClick={() => {
+              generateResearchPaperPDF();
+              toast({
+                title: "PDF Generated",
+                description: "Research paper downloaded successfully",
+              });
+            }} 
+            variant="outline"
+            className="gap-2"
+          >
+            <FileText className="w-4 h-4" />
+            Export Research Paper (PDF)
+          </Button>
           <Button onClick={exportToExcel} className="gap-2">
             <Download className="w-4 h-4" />
             Export to Excel ({dataLog.length} records)
