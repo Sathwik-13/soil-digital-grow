@@ -12,6 +12,8 @@ interface FieldProps {
   humidity: number;
   todayRainfall: number;
   totalRainfall: number;
+  selectedCrop?: string;
+  currentWeek?: number;
 }
 
 // Realistic dried mud cracks using actual texture
@@ -407,12 +409,14 @@ const RealisticTomatoPlant = ({
   position, 
   plantId,
   growth,
-  wiltFactor
+  wiltFactor,
+  currentWeek = 1
 }: { 
   position: [number, number, number];
   plantId: number;
   growth: number;
   wiltFactor: number;
+  currentWeek?: number;
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const stemSegments = 5;
@@ -530,12 +534,14 @@ const RealisticLettucePlant = ({
   position, 
   plantId,
   growth,
-  wiltFactor
+  wiltFactor,
+  currentWeek = 1
 }: { 
   position: [number, number, number];
   plantId: number;
   growth: number;
   wiltFactor: number;
+  currentWeek?: number;
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const leafCount = 16;
@@ -584,12 +590,14 @@ const RealisticPepperPlant = ({
   position, 
   plantId,
   growth,
-  wiltFactor
+  wiltFactor,
+  currentWeek = 1
 }: { 
   position: [number, number, number];
   plantId: number;
   growth: number;
   wiltFactor: number;
+  currentWeek?: number;
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const pepperColors = ["#f44336", "#ff9800", "#4caf50", "#ffeb3b"];
@@ -676,12 +684,14 @@ const RealisticStrawberryPlant = ({
   position, 
   plantId,
   growth,
-  wiltFactor
+  wiltFactor,
+  currentWeek = 1
 }: { 
   position: [number, number, number];
   plantId: number;
   growth: number;
   wiltFactor: number;
+  currentWeek?: number;
 }) => {
   const groupRef = useRef<THREE.Group>(null);
 
@@ -796,19 +806,274 @@ const RealisticStrawberryPlant = ({
   );
 };
 
-// Raised Garden Bed Component
+// Realistic Chili Plant Component (for dashboard crop selection)
+const RealisticChiliPlant = ({ 
+  position, 
+  plantId,
+  growth,
+  wiltFactor,
+  currentWeek = 1
+}: { 
+  position: [number, number, number];
+  plantId: number;
+  growth: number;
+  wiltFactor: number;
+  currentWeek?: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5 + plantId) * 0.02 * (1 - wiltFactor * 0.5);
+    }
+  });
+
+  const stemHeight = 0.7 * growth;
+  
+  // Chili color based on growth/ripeness
+  const getChiliColor = (g: number, index: number) => {
+    const ripeness = g + (index * 0.1);
+    if (ripeness > 0.85) return "#D32F2F"; // Deep red
+    if (ripeness > 0.7) return "#FF5722"; // Light red
+    if (ripeness > 0.55) return "#FF9800"; // Orange
+    if (ripeness > 0.4) return "#FFEB3B"; // Yellow
+    return "#4CAF50"; // Green
+  };
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Main stem */}
+      <mesh position={[0, stemHeight / 2, 0]} castShadow>
+        <cylinderGeometry args={[0.02, 0.03, stemHeight, 8]} />
+        <meshStandardMaterial color="#3d5a2c" roughness={0.8} />
+      </mesh>
+      
+      {/* Branch structure with leaves */}
+      {[0, 1, 2, 3, 4].map((i) => {
+        const angle = (i / 5) * Math.PI * 2 + 0.3;
+        const branchHeight = stemHeight * (0.4 + i * 0.1);
+        return (
+          <group key={`branch-${i}`}>
+            {/* Branch */}
+            <mesh
+              position={[
+                Math.cos(angle) * 0.08,
+                branchHeight,
+                Math.sin(angle) * 0.08
+              ]}
+              rotation={[0, -angle, Math.PI / 3]}
+              castShadow
+            >
+              <cylinderGeometry args={[0.01, 0.015, 0.12, 6]} />
+              <meshStandardMaterial color="#4a6b3a" roughness={0.8} />
+            </mesh>
+            
+            {/* Leaf */}
+            <mesh
+              position={[
+                Math.cos(angle) * 0.15,
+                branchHeight + 0.03,
+                Math.sin(angle) * 0.15
+              ]}
+              rotation={[wiltFactor * 0.4 + 0.2, angle, 0]}
+              castShadow
+            >
+              <sphereGeometry args={[0.05 * growth, 6, 4]} />
+              <meshStandardMaterial 
+                color={new THREE.Color(0.12, 0.45 - wiltFactor * 0.1, 0.08)} 
+                roughness={0.6}
+              />
+            </mesh>
+            
+            {/* Chilies - appear after week 14 */}
+            {growth > 0.5 && currentWeek >= 14 && i < 4 && (
+              <mesh
+                position={[
+                  Math.cos(angle) * 0.12,
+                  branchHeight - 0.05,
+                  Math.sin(angle) * 0.12
+                ]}
+                rotation={[0.5 + wiltFactor * 0.3, angle, 0]}
+                castShadow
+              >
+                <capsuleGeometry args={[0.015, 0.06 * growth, 4, 8]} />
+                <meshStandardMaterial 
+                  color={getChiliColor(growth, i)} 
+                  roughness={0.3}
+                  metalness={0.1}
+                />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
+      
+      {/* White flowers during flowering stage */}
+      {currentWeek >= 10 && currentWeek < 14 && (
+        <>
+          {[0, 1, 2].map((i) => (
+            <mesh
+              key={`flower-${i}`}
+              position={[
+                Math.cos(i * 2.1) * 0.1,
+                stemHeight * 0.7 + i * 0.03,
+                Math.sin(i * 2.1) * 0.1
+              ]}
+            >
+              <sphereGeometry args={[0.02, 6, 6]} />
+              <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.1} />
+            </mesh>
+          ))}
+        </>
+      )}
+    </group>
+  );
+};
+
+// Realistic Brinjal (Eggplant) Component
+const RealisticBrinjalPlant = ({ 
+  position, 
+  plantId,
+  growth,
+  wiltFactor,
+  currentWeek = 1
+}: { 
+  position: [number, number, number];
+  plantId: number;
+  growth: number;
+  wiltFactor: number;
+  currentWeek?: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5 + plantId) * 0.015 * (1 - wiltFactor * 0.5);
+    }
+  });
+
+  const stemHeight = 0.8 * growth;
+  
+  // Brinjal color based on ripeness
+  const getBrinjalColor = (g: number) => {
+    if (g > 0.8) return "#4A148C"; // Over-mature dark
+    if (g > 0.65) return "#5E35B1"; // Harvest ready
+    if (g > 0.5) return "#7E57C2"; // Nearly mature
+    if (g > 0.35) return "#9575CD"; // Developing
+    return "#A5D6A7"; // Young/green
+  };
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Main sturdy stem */}
+      <mesh position={[0, stemHeight / 2, 0]} castShadow>
+        <cylinderGeometry args={[0.03, 0.045, stemHeight, 8]} />
+        <meshStandardMaterial color="#3d5a2c" roughness={0.8} />
+      </mesh>
+      
+      {/* Large leaves arranged around stem */}
+      {[0, 1, 2, 3, 4, 5].map((i) => {
+        const angle = (i / 6) * Math.PI * 2;
+        const height = 0.15 + (i / 6) * stemHeight * 0.7;
+        return (
+          <mesh
+            key={`leaf-${i}`}
+            position={[
+              Math.cos(angle) * 0.12,
+              height,
+              Math.sin(angle) * 0.12
+            ]}
+            rotation={[wiltFactor * 0.3 + 0.4, angle, Math.PI / 8]}
+            castShadow
+          >
+            <sphereGeometry args={[0.08 * growth, 6, 4]} />
+            <meshStandardMaterial 
+              color={new THREE.Color(0.1, 0.35 - wiltFactor * 0.1, 0.08)} 
+              roughness={0.6}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        );
+      })}
+      
+      {/* Purple flowers during flowering stage */}
+      {currentWeek >= 9 && currentWeek < 12 && (
+        <>
+          {[0, 1].map((i) => (
+            <mesh
+              key={`flower-${i}`}
+              position={[
+                Math.cos(i * 3) * 0.1,
+                stemHeight * 0.6 + i * 0.05,
+                Math.sin(i * 3) * 0.1
+              ]}
+            >
+              <sphereGeometry args={[0.025, 6, 6]} />
+              <meshStandardMaterial color="#9c27b0" emissive="#9c27b0" emissiveIntensity={0.2} />
+            </mesh>
+          ))}
+        </>
+      )}
+      
+      {/* Brinjal fruits - appear after week 12 */}
+      {growth > 0.4 && currentWeek >= 12 && (
+        <>
+          {[0, 1].map((i) => {
+            const fruitSize = 0.04 + growth * 0.04;
+            return (
+              <group key={`brinjal-${i}`}>
+                {/* Main fruit body - elongated ellipsoid */}
+                <mesh
+                  position={[
+                    Math.cos(i * 4 + 1) * 0.15,
+                    stemHeight * 0.4 - i * 0.08,
+                    Math.sin(i * 4 + 1) * 0.15
+                  ]}
+                  rotation={[0.3, i * 1.5, 0]}
+                  castShadow
+                >
+                  <capsuleGeometry args={[fruitSize, fruitSize * 1.5, 8, 16]} />
+                  <meshStandardMaterial 
+                    color={getBrinjalColor(growth)} 
+                    roughness={0.2}
+                    metalness={0.15}
+                  />
+                </mesh>
+                {/* Calyx (green cap) */}
+                <mesh
+                  position={[
+                    Math.cos(i * 4 + 1) * 0.15,
+                    stemHeight * 0.4 - i * 0.08 + fruitSize * 1.8,
+                    Math.sin(i * 4 + 1) * 0.15
+                  ]}
+                >
+                  <coneGeometry args={[fruitSize * 0.6, fruitSize * 0.4, 5]} />
+                  <meshStandardMaterial color="#2e7d32" roughness={0.7} />
+                </mesh>
+              </group>
+            );
+          })}
+        </>
+      )}
+    </group>
+  );
+};
+
+// Raised Garden Bed Component - Updated to support all crops
 const RaisedGardenBed = ({ 
   position, 
   moisture,
   temperature,
   plantType,
-  bedId
+  bedId,
+  currentWeek = 1
 }: { 
   position: [number, number, number];
   moisture: number;
   temperature: number;
-  plantType: 'tomato' | 'lettuce' | 'pepper' | 'strawberry';
+  plantType: 'tomato' | 'lettuce' | 'pepper' | 'strawberry' | 'chili' | 'brinjal';
   bedId: number;
+  currentWeek?: number;
 }) => {
   const soilColor = useMemo(() => {
     const moistureFactor = moisture / 100;
@@ -843,12 +1108,20 @@ const RaisedGardenBed = ({
     return plantList;
   }, [moisture, temperature, bedId]);
 
-  const PlantComponent = {
-    tomato: RealisticTomatoPlant,
-    lettuce: RealisticLettucePlant,
-    pepper: RealisticPepperPlant,
-    strawberry: RealisticStrawberryPlant,
-  }[plantType];
+  // Map plant types to components - include chili and brinjal
+  const getPlantComponent = (type: string) => {
+    switch (type) {
+      case 'tomato': return RealisticTomatoPlant;
+      case 'lettuce': return RealisticLettucePlant;
+      case 'pepper': return RealisticPepperPlant;
+      case 'strawberry': return RealisticStrawberryPlant;
+      case 'chili': return RealisticChiliPlant;
+      case 'brinjal': return RealisticBrinjalPlant;
+      default: return RealisticTomatoPlant;
+    }
+  };
+  
+  const PlantComponent = getPlantComponent(plantType);
 
   return (
     <group position={position}>
@@ -879,6 +1152,7 @@ const RaisedGardenBed = ({
           plantId={plant.plantId}
           growth={plant.growth}
           wiltFactor={wiltFactor}
+          currentWeek={currentWeek}
         />
       ))}
     </group>
@@ -1194,7 +1468,7 @@ const SensorPole = ({ position, label, value }: { position: [number, number, num
   );
 };
 
-const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall }: FieldProps) => {
+const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall, selectedCrop = 'tomato', currentWeek = 1 }: FieldProps) => {
   const plantHealth = useMemo(() => {
     let health = 100;
     if (moisture < 30) health -= (30 - moisture);
@@ -1212,11 +1486,33 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
 
   // Sky color based on conditions
   const skyTurbidity = useMemo(() => {
-    if (temperature > 35) return 12; // Hazy hot day
-    if (humidity > 80) return 10; // Humid/overcast
-    if (todayRainfall > 5) return 14; // Rainy/overcast
+    if (temperature > 35) return 12;
+    if (humidity > 80) return 10;
+    if (todayRainfall > 5) return 14;
     return 8;
   }, [temperature, humidity, todayRainfall]);
+
+  // Map selected crop to plant type
+  const getCropPlantType = (crop: string): 'tomato' | 'chili' | 'brinjal' | 'lettuce' | 'pepper' | 'strawberry' => {
+    switch (crop) {
+      case 'tomato': return 'tomato';
+      case 'chili': return 'chili';
+      case 'brinjal': return 'brinjal';
+      default: return 'tomato';
+    }
+  };
+
+  const cropPlantType = getCropPlantType(selectedCrop);
+  
+  // Crop display info
+  const cropInfo = {
+    tomato: { emoji: '🍅', name: 'Tomatoes', color: '#e53935' },
+    chili: { emoji: '🌶️', name: 'Chilies', color: '#ff5722' },
+    brinjal: { emoji: '🍆', name: 'Brinjal', color: '#7e57c2' },
+    lettuce: { emoji: '🥬', name: 'Lettuce', color: '#4caf50' },
+    pepper: { emoji: '🫑', name: 'Peppers', color: '#ff9800' },
+    strawberry: { emoji: '🍓', name: 'Strawberries', color: '#e91e63' },
+  }[cropPlantType];
 
   return (
     <>
@@ -1273,50 +1569,45 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
       <SensorPole position={[5.5, 0, 5.5]} label="Moisture" value={`${moisture}%`} />
       <SensorPole position={[5.5, 0, -5.5]} label="Temp" value={`${temperature}°C`} />
       <SensorPole position={[-5.5, 0, 5.5]} label="pH" value={soilPh.toFixed(1)} />
-      <SensorPole position={[-5.5, 0, -5.5]} label="Humidity" value={`${humidity}%`} />
+      <SensorPole position={[-5.5, 0, -5.5]} label="Week" value={`${currentWeek}`} />
 
-      {/* Raised Garden Beds - 4 beds with different plant types */}
+      {/* Four beds of the selected crop for focused simulation */}
       <RaisedGardenBed 
         position={[-2.5, 0, -2.5]} 
         moisture={moisture} 
         temperature={temperature} 
-        plantType="tomato" 
-        bedId={0} 
+        plantType={cropPlantType} 
+        bedId={0}
+        currentWeek={currentWeek}
       />
       <RaisedGardenBed 
         position={[-2.5, 0, 2.5]} 
         moisture={moisture} 
         temperature={temperature} 
-        plantType="lettuce" 
-        bedId={1} 
+        plantType={cropPlantType} 
+        bedId={1}
+        currentWeek={currentWeek}
       />
       <RaisedGardenBed 
         position={[2.5, 0, -2.5]} 
         moisture={moisture} 
         temperature={temperature} 
-        plantType="pepper" 
-        bedId={2} 
+        plantType={cropPlantType} 
+        bedId={2}
+        currentWeek={currentWeek}
       />
       <RaisedGardenBed 
         position={[2.5, 0, 2.5]} 
         moisture={moisture} 
         temperature={temperature} 
-        plantType="strawberry" 
-        bedId={3} 
+        plantType={cropPlantType} 
+        bedId={3}
+        currentWeek={currentWeek}
       />
 
-      {/* Bed Labels */}
-      <Text position={[-2.5, 1.2, -2.5]} fontSize={0.18} color="#e53935" anchorX="center">
-        🍅 Tomatoes
-      </Text>
-      <Text position={[-2.5, 1.2, 2.5]} fontSize={0.18} color="#4caf50" anchorX="center">
-        🥬 Lettuce
-      </Text>
-      <Text position={[2.5, 1.2, -2.5]} fontSize={0.18} color="#ff5722" anchorX="center">
-        🌶️ Peppers
-      </Text>
-      <Text position={[2.5, 1.2, 2.5]} fontSize={0.18} color="#e91e63" anchorX="center">
-        🍓 Strawberries
+      {/* Crop and Week Labels */}
+      <Text position={[0, 1.8, -4]} fontSize={0.3} color={cropInfo?.color || '#4caf50'} anchorX="center" outlineWidth={0.01} outlineColor="#000000">
+        {cropInfo?.emoji} {cropInfo?.name} - Week {currentWeek}
       </Text>
 
       {/* Health indicator */}
@@ -1358,7 +1649,7 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
   );
 };
 
-const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall }: FieldProps) => {
+const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall, selectedCrop = 'tomato', currentWeek = 1 }: FieldProps) => {
   return (
     <div className="w-full h-[600px] rounded-lg overflow-hidden border-2 border-primary/20 shadow-2xl bg-gradient-to-b from-sky-200 to-green-100">
       <Canvas
@@ -1374,6 +1665,8 @@ const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidit
           humidity={humidity}
           todayRainfall={todayRainfall}
           totalRainfall={totalRainfall}
+          selectedCrop={selectedCrop}
+          currentWeek={currentWeek}
         />
       </Canvas>
     </div>
