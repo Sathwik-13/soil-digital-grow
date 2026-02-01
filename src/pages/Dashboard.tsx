@@ -19,6 +19,7 @@ import PlantGrowthResults from "@/components/PlantGrowthResults";
 import CropSelector from "@/components/CropSelector";
 import CropTimeline from "@/components/CropTimeline";
 import DiseaseDetection from "@/components/DiseaseDetection";
+import TomatoRipeness from "@/components/TomatoRipeness";
 import { CROP_DATA, getCurrentStage, calculatePlantHealth  } from "@/data/cropData";
 import heroImage from "@/assets/hero-farm-fields.jpg";
 import tomatoImage from "@/assets/tomato-field.jpg";
@@ -907,6 +908,15 @@ const Dashboard = () => {
 
         {/* Crop Timeline Visualization */}
         <CropTimeline selectedCrop={selectedCrop} currentWeek={currentWeek} />
+
+        {/* Tomato Ripeness Tracker - Only for Tomato crop */}
+        {selectedCrop === "tomato" && (
+          <TomatoRipeness
+            temperature={temperature}
+            moisture={moisture}
+            currentWeek={currentWeek}
+          />
+        )}
 
         {/* Disease Detection */}
         <DiseaseDetection
