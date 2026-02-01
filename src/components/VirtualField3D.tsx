@@ -395,6 +395,563 @@ const RealisticSoilLayer = ({ moisture, soilPh }: { moisture: number; soilPh: nu
   );
 };
 
+// Calculate growth factor based on environmental conditions
+const calculateGrowthFactor = (moisture: number, temperature: number, plantId: number): number => {
+  const baseGrowth = Math.min(1, Math.max(0.3, (moisture / 100) * (temperature / 22)));
+  const variation = 0.85 + Math.sin(plantId * 0.7) * 0.15;
+  return baseGrowth * variation;
+};
+
+// Realistic Tomato Plant Component
+const RealisticTomatoPlant = ({ 
+  position, 
+  plantId,
+  growth,
+  wiltFactor
+}: { 
+  position: [number, number, number];
+  plantId: number;
+  growth: number;
+  wiltFactor: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const stemSegments = 5;
+  const leafCount = 8;
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5 + plantId) * 0.02 * (1 - wiltFactor * 0.5);
+    }
+  });
+
+  const stemHeight = 0.8 * growth;
+  
+  // Tomato ripeness color based on growth
+  const getTomatoColor = (g: number) => {
+    if (g > 0.7) return "#e53935"; // Red ripe
+    if (g > 0.4) return "#ff9800"; // Orange
+    return "#4caf50"; // Green
+  };
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Tapered stem segments */}
+      {Array.from({ length: stemSegments }).map((_, i) => {
+        const segmentHeight = stemHeight / stemSegments;
+        const bottomRadius = 0.04 - (i * 0.005);
+        const topRadius = 0.035 - (i * 0.005);
+        return (
+          <mesh 
+            key={`stem-${i}`} 
+            position={[0, segmentHeight * i + segmentHeight / 2, 0]} 
+            castShadow
+          >
+            <cylinderGeometry args={[topRadius, bottomRadius, segmentHeight, 8]} />
+            <meshStandardMaterial color="#3d5a2c" roughness={0.8} />
+          </mesh>
+        );
+      })}
+      
+      {/* Spiral arranged leaves */}
+      {Array.from({ length: leafCount }).map((_, i) => {
+        const angle = (i / leafCount) * Math.PI * 4;
+        const height = 0.15 + (i / leafCount) * stemHeight * 0.8;
+        const radius = 0.12 + Math.sin(i) * 0.03;
+        const droopAngle = wiltFactor * 0.4;
+        return (
+          <mesh
+            key={`leaf-${i}`}
+            position={[
+              Math.cos(angle) * 0.08,
+              height,
+              Math.sin(angle) * 0.08
+            ]}
+            rotation={[droopAngle + 0.3, angle, Math.PI / 6]}
+            castShadow
+          >
+            <sphereGeometry args={[radius * growth, 6, 4]} />
+            <meshStandardMaterial 
+              color={new THREE.Color(0.15, 0.5 - wiltFactor * 0.2, 0.1)} 
+              roughness={0.6}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        );
+      })}
+      
+      {/* Yellow flower clusters (during flowering stage) */}
+      {growth >= 0.4 && growth <= 0.8 && (
+        <>
+          {[0, 1, 2].map((i) => (
+            <mesh
+              key={`flower-${i}`}
+              position={[
+                Math.cos(i * 2.1) * 0.15,
+                stemHeight * 0.7 + i * 0.05,
+                Math.sin(i * 2.1) * 0.15
+              ]}
+            >
+              <sphereGeometry args={[0.03, 6, 6]} />
+              <meshStandardMaterial color="#ffeb3b" emissive="#ffeb3b" emissiveIntensity={0.2} />
+            </mesh>
+          ))}
+        </>
+      )}
+      
+      {/* Tomato fruits */}
+      {growth > 0.6 && (
+        <>
+          {[0, 1, 2].map((i) => (
+            <mesh
+              key={`tomato-${i}`}
+              position={[
+                Math.cos(i * 2.5) * 0.2,
+                stemHeight * 0.5 + i * 0.1,
+                Math.sin(i * 2.5) * 0.2
+              ]}
+              castShadow
+            >
+              <sphereGeometry args={[0.06 + growth * 0.03, 8, 8]} />
+              <meshStandardMaterial 
+                color={getTomatoColor(growth)} 
+                roughness={0.3}
+                metalness={0.1}
+              />
+            </mesh>
+          ))}
+        </>
+      )}
+    </group>
+  );
+};
+
+// Realistic Lettuce Plant Component
+const RealisticLettucePlant = ({ 
+  position, 
+  plantId,
+  growth,
+  wiltFactor
+}: { 
+  position: [number, number, number];
+  plantId: number;
+  growth: number;
+  wiltFactor: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const leafCount = 16;
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5 + plantId) * 0.02;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      {Array.from({ length: leafCount }).map((_, i) => {
+        const layer = Math.floor(i / 4);
+        const angleOffset = (i % 4) * (Math.PI / 2) + layer * 0.3;
+        const height = layer * 0.06 * growth;
+        const scale = (1 - layer * 0.15) * growth;
+        const greenIntensity = 0.3 + layer * 0.1; // Inner leaves lighter
+        
+        return (
+          <mesh
+            key={`lettuce-leaf-${i}`}
+            position={[
+              Math.cos(angleOffset) * 0.08 * (4 - layer),
+              height,
+              Math.sin(angleOffset) * 0.08 * (4 - layer)
+            ]}
+            rotation={[wiltFactor * 0.2 + 0.2, angleOffset, 0]}
+            castShadow
+          >
+            <sphereGeometry args={[0.08 * scale, 6, 4]} />
+            <meshStandardMaterial 
+              color={new THREE.Color(0.2, greenIntensity + 0.3, 0.15)} 
+              roughness={0.7}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+};
+
+// Realistic Pepper Plant Component
+const RealisticPepperPlant = ({ 
+  position, 
+  plantId,
+  growth,
+  wiltFactor
+}: { 
+  position: [number, number, number];
+  plantId: number;
+  growth: number;
+  wiltFactor: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const pepperColors = ["#f44336", "#ff9800", "#4caf50", "#ffeb3b"];
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5 + plantId) * 0.02;
+    }
+  });
+
+  const stemHeight = 0.6 * growth;
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Main stem */}
+      <mesh position={[0, stemHeight / 2, 0]} castShadow>
+        <cylinderGeometry args={[0.025, 0.035, stemHeight, 8]} />
+        <meshStandardMaterial color="#3d5a2c" roughness={0.8} />
+      </mesh>
+      
+      {/* Four branch stems at 90° intervals */}
+      {[0, 1, 2, 3].map((i) => {
+        const angle = (i / 4) * Math.PI * 2;
+        return (
+          <group key={`branch-${i}`}>
+            <mesh
+              position={[
+                Math.cos(angle) * 0.1,
+                stemHeight * 0.7,
+                Math.sin(angle) * 0.1
+              ]}
+              rotation={[0, -angle, Math.PI / 4]}
+              castShadow
+            >
+              <cylinderGeometry args={[0.015, 0.02, 0.15, 6]} />
+              <meshStandardMaterial color="#4a6b3a" roughness={0.8} />
+            </mesh>
+            
+            {/* Leaves on branches */}
+            <mesh
+              position={[
+                Math.cos(angle) * 0.18,
+                stemHeight * 0.75,
+                Math.sin(angle) * 0.18
+              ]}
+              rotation={[wiltFactor * 0.3, angle, 0]}
+              castShadow
+            >
+              <sphereGeometry args={[0.06 * growth, 6, 4]} />
+              <meshStandardMaterial 
+                color={new THREE.Color(0.15, 0.45, 0.1)} 
+                roughness={0.6}
+              />
+            </mesh>
+            
+            {/* Peppers */}
+            {growth > 0.5 && (
+              <mesh
+                position={[
+                  Math.cos(angle) * 0.15,
+                  stemHeight * 0.5,
+                  Math.sin(angle) * 0.15
+                ]}
+                rotation={[0.3, angle, 0]}
+                castShadow
+              >
+                <capsuleGeometry args={[0.025, 0.08 * growth, 4, 8]} />
+                <meshStandardMaterial 
+                  color={pepperColors[i]} 
+                  roughness={0.3}
+                  metalness={0.1}
+                />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
+    </group>
+  );
+};
+
+// Realistic Strawberry Plant Component
+const RealisticStrawberryPlant = ({ 
+  position, 
+  plantId,
+  growth,
+  wiltFactor
+}: { 
+  position: [number, number, number];
+  plantId: number;
+  growth: number;
+  wiltFactor: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5 + plantId) * 0.02;
+    }
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Trifoliate leaf groups on petiole stems */}
+      {[0, 1, 2, 3].map((i) => {
+        const angle = (i / 4) * Math.PI * 2;
+        return (
+          <group key={`leaf-group-${i}`}>
+            {/* Petiole stem */}
+            <mesh
+              position={[
+                Math.cos(angle) * 0.06,
+                0.1 * growth,
+                Math.sin(angle) * 0.06
+              ]}
+              rotation={[0.5, -angle, 0]}
+              castShadow
+            >
+              <cylinderGeometry args={[0.01, 0.015, 0.12 * growth, 6]} />
+              <meshStandardMaterial color="#5d7a4a" roughness={0.8} />
+            </mesh>
+            
+            {/* Three leaflets */}
+            {[0, 1, 2].map((j) => {
+              const leafAngle = angle + (j - 1) * 0.4;
+              return (
+                <mesh
+                  key={`leaflet-${j}`}
+                  position={[
+                    Math.cos(leafAngle) * 0.14,
+                    0.15 * growth,
+                    Math.sin(leafAngle) * 0.14
+                  ]}
+                  rotation={[wiltFactor * 0.2 + 0.3, leafAngle, 0]}
+                  castShadow
+                >
+                  <sphereGeometry args={[0.04 * growth, 6, 4]} />
+                  <meshStandardMaterial 
+                    color={new THREE.Color(0.12, 0.4, 0.08)} 
+                    roughness={0.6}
+                  />
+                </mesh>
+              );
+            })}
+          </group>
+        );
+      })}
+      
+      {/* White flower clusters */}
+      {growth >= 0.3 && growth <= 0.6 && (
+        <>
+          {[0, 1].map((i) => (
+            <mesh
+              key={`flower-${i}`}
+              position={[
+                Math.cos(i * 3) * 0.08,
+                0.12,
+                Math.sin(i * 3) * 0.08
+              ]}
+            >
+              <sphereGeometry args={[0.025, 6, 6]} />
+              <meshStandardMaterial color="#ffffff" emissive="#ffffcc" emissiveIntensity={0.1} />
+            </mesh>
+          ))}
+        </>
+      )}
+      
+      {/* Strawberry fruits (cone geometry with seeds) */}
+      {growth > 0.5 && (
+        <>
+          {[0, 1].map((i) => (
+            <group key={`strawberry-${i}`}>
+              <mesh
+                position={[
+                  Math.cos(i * 4) * 0.1,
+                  0.04,
+                  Math.sin(i * 4) * 0.1
+                ]}
+                rotation={[Math.PI, 0, 0]}
+                castShadow
+              >
+                <coneGeometry args={[0.035 * growth, 0.06 * growth, 8]} />
+                <meshStandardMaterial color="#e53935" roughness={0.4} />
+              </mesh>
+              {/* Seeds */}
+              {[0, 1, 2, 3].map((s) => (
+                <mesh
+                  key={`seed-${s}`}
+                  position={[
+                    Math.cos(i * 4) * 0.1 + Math.cos(s * 1.5) * 0.02,
+                    0.03,
+                    Math.sin(i * 4) * 0.1 + Math.sin(s * 1.5) * 0.02
+                  ]}
+                >
+                  <sphereGeometry args={[0.005, 4, 4]} />
+                  <meshStandardMaterial color="#ffeb3b" />
+                </mesh>
+              ))}
+            </group>
+          ))}
+        </>
+      )}
+    </group>
+  );
+};
+
+// Raised Garden Bed Component
+const RaisedGardenBed = ({ 
+  position, 
+  moisture,
+  temperature,
+  plantType,
+  bedId
+}: { 
+  position: [number, number, number];
+  moisture: number;
+  temperature: number;
+  plantType: 'tomato' | 'lettuce' | 'pepper' | 'strawberry';
+  bedId: number;
+}) => {
+  const soilColor = useMemo(() => {
+    const moistureFactor = moisture / 100;
+    return new THREE.Color(
+      0.35 - moistureFactor * 0.15,
+      0.22 - moistureFactor * 0.1,
+      0.1 - moistureFactor * 0.05
+    );
+  }, [moisture]);
+
+  const wiltFactor = useMemo(() => {
+    let wilt = 0;
+    if (moisture < 25) wilt += (25 - moisture) / 25 * 0.5;
+    if (temperature > 38) wilt += (temperature - 38) / 12 * 0.3;
+    return Math.min(1, wilt);
+  }, [moisture, temperature]);
+
+  // 3x3 grid of plants per bed
+  const plants = useMemo(() => {
+    const plantList = [];
+    for (let x = 0; x < 3; x++) {
+      for (let z = 0; z < 3; z++) {
+        const plantId = bedId * 9 + x * 3 + z;
+        const growth = calculateGrowthFactor(moisture, temperature, plantId);
+        plantList.push({
+          position: [(x - 1) * 0.5, 0.15, (z - 1) * 0.5] as [number, number, number],
+          plantId,
+          growth,
+        });
+      }
+    }
+    return plantList;
+  }, [moisture, temperature, bedId]);
+
+  const PlantComponent = {
+    tomato: RealisticTomatoPlant,
+    lettuce: RealisticLettucePlant,
+    pepper: RealisticPepperPlant,
+    strawberry: RealisticStrawberryPlant,
+  }[plantType];
+
+  return (
+    <group position={position}>
+      {/* Wood frame */}
+      {[
+        [0, 0.075, -0.9, 1.9, 0.15, 0.1],
+        [0, 0.075, 0.9, 1.9, 0.15, 0.1],
+        [-0.9, 0.075, 0, 0.1, 0.15, 1.8],
+        [0.9, 0.075, 0, 0.1, 0.15, 1.8],
+      ].map((dims, i) => (
+        <mesh key={`frame-${i}`} position={[dims[0], dims[1], dims[2]]} castShadow>
+          <boxGeometry args={[dims[3], dims[4], dims[5]]} />
+          <meshStandardMaterial color="#8B4513" roughness={0.9} />
+        </mesh>
+      ))}
+      
+      {/* Soil layer */}
+      <mesh position={[0, 0.05, 0]} receiveShadow>
+        <boxGeometry args={[1.7, 0.1, 1.7]} />
+        <meshStandardMaterial color={soilColor} roughness={0.95} />
+      </mesh>
+      
+      {/* Plants */}
+      {plants.map((plant, i) => (
+        <PlantComponent
+          key={i}
+          position={plant.position}
+          plantId={plant.plantId}
+          growth={plant.growth}
+          wiltFactor={wiltFactor}
+        />
+      ))}
+    </group>
+  );
+};
+
+// Mist particles for high humidity
+const MistParticles = ({ humidity }: { humidity: number }) => {
+  const pointsRef = useRef<THREE.Points>(null);
+  const mistIntensity = useMemo(() => Math.max(0, (humidity - 65) / 35), [humidity]);
+  const particleCount = useMemo(() => Math.floor(mistIntensity * 150), [mistIntensity]);
+
+  const [positions, velocities] = useMemo(() => {
+    if (particleCount === 0) return [new Float32Array(0), new Float32Array(0)];
+    const pos = new Float32Array(particleCount * 3);
+    const vel = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 12;
+      pos[i * 3 + 1] = Math.random() * 1.5 + 0.2;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 12;
+      
+      vel[i * 3] = (Math.random() - 0.5) * 0.003;
+      vel[i * 3 + 1] = (Math.random() - 0.5) * 0.002;
+      vel[i * 3 + 2] = (Math.random() - 0.5) * 0.003;
+    }
+    
+    return [pos, vel];
+  }, [particleCount]);
+
+  useFrame(() => {
+    if (pointsRef.current && particleCount > 0) {
+      const pos = pointsRef.current.geometry.attributes.position.array as Float32Array;
+      
+      for (let i = 0; i < pos.length / 3; i++) {
+        pos[i * 3] += velocities[i * 3];
+        pos[i * 3 + 1] += velocities[i * 3 + 1];
+        pos[i * 3 + 2] += velocities[i * 3 + 2];
+        
+        // Reset particles that drift too far
+        if (Math.abs(pos[i * 3]) > 6) pos[i * 3] *= -0.9;
+        if (pos[i * 3 + 1] > 2 || pos[i * 3 + 1] < 0.1) velocities[i * 3 + 1] *= -1;
+        if (Math.abs(pos[i * 3 + 2]) > 6) pos[i * 3 + 2] *= -0.9;
+      }
+      
+      pointsRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+  });
+
+  if (particleCount === 0) return null;
+
+  return (
+    <points ref={pointsRef} key={`mist-${particleCount}`}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={positions.length / 3}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial 
+        size={0.15} 
+        color="#e0e0e0" 
+        transparent 
+        opacity={0.25 * mistIntensity}
+        sizeAttenuation
+      />
+    </points>
+  );
+};
+
+// Legacy plant component for backward compatibility
 const RealisticPlant = ({ 
   position, 
   health,
@@ -410,7 +967,6 @@ const RealisticPlant = ({
 }) => {
   const groupRef = useRef<THREE.Group>(null);
 
-  // Calculate wilting based on conditions
   const wiltFactor = useMemo(() => {
     let wilt = 0;
     if (moisture < 25) wilt += (25 - moisture) / 25 * 0.5;
@@ -421,19 +977,15 @@ const RealisticPlant = ({
 
   useFrame((state) => {
     if (groupRef.current) {
-      // Natural sway reduced when wilting
       const swayAmount = 0.03 * (1 - wiltFactor * 0.7);
       groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5 + position[0]) * swayAmount;
       groupRef.current.position.y = Math.sin(state.clock.elapsedTime + position[0]) * 0.02 * (1 - wiltFactor);
-      
-      // Wilting effect - droop
       groupRef.current.rotation.x = wiltFactor * 0.3;
     }
   });
 
   const leafColor = useMemo(() => {
     const healthFactor = health / 100;
-    // Add browning for drought stress
     const brownFactor = moisture < 25 ? (25 - moisture) / 25 * 0.3 : 0;
     return new THREE.Color(
       0.1 + (1 - healthFactor) * 0.4 + brownFactor * 0.3,
@@ -449,13 +1001,11 @@ const RealisticPlant = ({
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Main stem */}
       <mesh position={[0, 0.25, 0]} castShadow>
         <cylinderGeometry args={[0.03, 0.05, 0.5, 8]} />
         <meshStandardMaterial color="#3d5a2c" roughness={0.8} />
       </mesh>
       
-      {/* Main leaf cluster */}
       {[0, 1, 2, 3, 4].map((i) => {
         const angle = (i / 5) * Math.PI * 2;
         const height = 0.4 + i * 0.1;
@@ -481,7 +1031,6 @@ const RealisticPlant = ({
         );
       })}
       
-      {/* Top leaves */}
       <mesh position={[0, 0.6 * (1 - wiltFactor * 0.3), 0]} rotation={[wiltFactor * 0.2, 0, 0]} castShadow>
         <sphereGeometry args={[0.15 * scale, 8, 6]} />
         <meshStandardMaterial color={leafColor} roughness={0.5} />
@@ -717,26 +1266,58 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
       />
       
       <WaterDroplets key={`${todayRainfall}-${totalRainfall}`} todayRainfall={todayRainfall} totalRainfall={totalRainfall} />
+      <MistParticles humidity={humidity} />
       <IrrigationSystem active={isIrrigating} />
 
       {/* Sensor poles */}
-      <SensorPole position={[4, 0, 4]} label="Moisture" value={`${moisture}%`} />
-      <SensorPole position={[4, 0, -4]} label="Temp" value={`${temperature}°C`} />
-      <SensorPole position={[-4, 0, 4]} label="pH" value={soilPh.toFixed(1)} />
+      <SensorPole position={[5.5, 0, 5.5]} label="Moisture" value={`${moisture}%`} />
+      <SensorPole position={[5.5, 0, -5.5]} label="Temp" value={`${temperature}°C`} />
+      <SensorPole position={[-5.5, 0, 5.5]} label="pH" value={soilPh.toFixed(1)} />
+      <SensorPole position={[-5.5, 0, -5.5]} label="Humidity" value={`${humidity}%`} />
 
-      {/* Plant field - 6x6 grid */}
-      {Array.from({ length: 6 }).map((_, x) =>
-        Array.from({ length: 6 }).map((_, z) => (
-          <RealisticPlant
-            key={`${x}-${z}`}
-            position={[(x - 2.5) * 1.3, 0, (z - 2.5) * 1.3]}
-            health={plantHealth + (Math.random() - 0.5) * 10}
-            temperature={temperature}
-            lightIntensity={lightIntensity}
-            moisture={moisture}
-          />
-        ))
-      )}
+      {/* Raised Garden Beds - 4 beds with different plant types */}
+      <RaisedGardenBed 
+        position={[-2.5, 0, -2.5]} 
+        moisture={moisture} 
+        temperature={temperature} 
+        plantType="tomato" 
+        bedId={0} 
+      />
+      <RaisedGardenBed 
+        position={[-2.5, 0, 2.5]} 
+        moisture={moisture} 
+        temperature={temperature} 
+        plantType="lettuce" 
+        bedId={1} 
+      />
+      <RaisedGardenBed 
+        position={[2.5, 0, -2.5]} 
+        moisture={moisture} 
+        temperature={temperature} 
+        plantType="pepper" 
+        bedId={2} 
+      />
+      <RaisedGardenBed 
+        position={[2.5, 0, 2.5]} 
+        moisture={moisture} 
+        temperature={temperature} 
+        plantType="strawberry" 
+        bedId={3} 
+      />
+
+      {/* Bed Labels */}
+      <Text position={[-2.5, 1.2, -2.5]} fontSize={0.18} color="#e53935" anchorX="center">
+        🍅 Tomatoes
+      </Text>
+      <Text position={[-2.5, 1.2, 2.5]} fontSize={0.18} color="#4caf50" anchorX="center">
+        🥬 Lettuce
+      </Text>
+      <Text position={[2.5, 1.2, -2.5]} fontSize={0.18} color="#ff5722" anchorX="center">
+        🌶️ Peppers
+      </Text>
+      <Text position={[2.5, 1.2, 2.5]} fontSize={0.18} color="#e91e63" anchorX="center">
+        🍓 Strawberries
+      </Text>
 
       {/* Health indicator */}
       <Text
@@ -765,14 +1346,14 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
         enablePan={true}
         enableZoom={true}
         enableRotate={true}
-        minDistance={6}
-        maxDistance={25}
-        maxPolarAngle={Math.PI / 2.2}
+        minDistance={4}
+        maxDistance={18}
+        maxPolarAngle={Math.PI / 2.1}
       />
       <Environment preset="sunset" />
       
       {/* Ground fog effect */}
-      <fog attach="fog" args={['#e8f5e9', 10, 40]} />
+      <fog attach="fog" args={['#e8f5e9', 12, 45]} />
     </>
   );
 };
@@ -782,7 +1363,7 @@ const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidit
     <div className="w-full h-[600px] rounded-lg overflow-hidden border-2 border-primary/20 shadow-2xl bg-gradient-to-b from-sky-200 to-green-100">
       <Canvas
         shadows
-        camera={{ position: [10, 8, 10], fov: 50 }}
+        camera={{ position: [10, 8, 10], fov: 45 }}
         gl={{ antialias: true, alpha: false }}
       >
         <Scene 
