@@ -19,7 +19,7 @@ import PlantGrowthResults from "@/components/PlantGrowthResults";
 import CropSelector from "@/components/CropSelector";
 import CropTimeline from "@/components/CropTimeline";
 import DiseaseDetection from "@/components/DiseaseDetection";
-import TomatoRipeness from "@/components/TomatoRipeness";
+import CropRipeness from "@/components/CropRipeness";
 import { CROP_DATA, getCurrentStage, calculatePlantHealth  } from "@/data/cropData";
 import heroImage from "@/assets/hero-farm-fields.jpg";
 import tomatoImage from "@/assets/tomato-field.jpg";
@@ -61,6 +61,7 @@ const Dashboard = () => {
   const [activeGraph, setActiveGraph] = useState<string | null>(null);
   const [selectedCrop, setSelectedCrop] = useState("tomato");
   const [currentWeek, setCurrentWeek] = useState(1);
+  const [ripenessDay, setRipenessDay] = useState(0);
 
   const crop = CROP_DATA[selectedCrop];
   const currentStage = getCurrentStage(selectedCrop, currentWeek);
@@ -870,6 +871,9 @@ const Dashboard = () => {
               humidity={humidity}
               todayRainfall={todayRainfall}
               totalRainfall={totalRainfall}
+              selectedCrop={selectedCrop}
+              currentWeek={currentWeek}
+              ripenessDay={ripenessDay}
             />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               <Button onClick={() => setActiveGraph("moisture")} variant="outline" size="sm" className="gap-2">
@@ -909,14 +913,14 @@ const Dashboard = () => {
         {/* Crop Timeline Visualization */}
         <CropTimeline selectedCrop={selectedCrop} currentWeek={currentWeek} />
 
-        {/* Tomato Ripeness Tracker - Only for Tomato crop */}
-        {selectedCrop === "tomato" && (
-          <TomatoRipeness
-            temperature={temperature}
-            moisture={moisture}
-            currentWeek={currentWeek}
-          />
-        )}
+        {/* Crop Ripeness Tracker - For all crops */}
+        <CropRipeness
+          selectedCrop={selectedCrop}
+          temperature={temperature}
+          moisture={moisture}
+          currentWeek={currentWeek}
+          onRipenessChange={(days) => setRipenessDay(days)}
+        />
 
         {/* Disease Detection */}
         <DiseaseDetection

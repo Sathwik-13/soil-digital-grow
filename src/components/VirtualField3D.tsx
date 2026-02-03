@@ -1,8 +1,9 @@
-import { useRef, useMemo, useEffect, useState } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { useRef, useMemo, useState } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, Environment, Sky, Cloud, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import crackedSoilTexture from '@/assets/cracked-soil-texture.png';
+import { CROP_RIPENESS_DATA, getCurrentRipenessStage, calculateRipeningSpeed } from '@/data/ripenessData';
 
 interface FieldProps {
   moisture: number;
@@ -12,6 +13,9 @@ interface FieldProps {
   humidity: number;
   todayRainfall: number;
   totalRainfall: number;
+  selectedCrop?: string;
+  currentWeek?: number;
+  ripenessDay?: number;
 }
 
 // Realistic dried mud cracks using actual texture
@@ -292,7 +296,7 @@ const WaterPuddles = ({ moisture }: { moisture: number }) => {
 };
 
 // Status warning indicators floating above field
-const StatusIndicators = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Omit<FieldProps, 'todayRainfall' | 'totalRainfall'>) => {
+const StatusIndicators = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Omit<FieldProps, 'todayRainfall' | 'totalRainfall' | 'selectedCrop' | 'currentWeek' | 'ripenessDay'>) => {
   const warnings = useMemo(() => {
     const w: { text: string; color: string; position: [number, number, number] }[] = [];
     
@@ -357,7 +361,6 @@ const RealisticSoilLayer = ({ moisture, soilPh }: { moisture: number; soilPh: nu
     canvas.height = 512;
     const ctx = canvas.getContext('2d')!;
     
-    // Base soil color - affected by moisture
     const moistureFactor = moisture / 100;
     const baseR = Math.floor((0.4 - moistureFactor * 0.2) * 255);
     const baseG = Math.floor((0.26 - moistureFactor * 0.15) * 255);
@@ -366,7 +369,6 @@ const RealisticSoilLayer = ({ moisture, soilPh }: { moisture: number; soilPh: nu
     ctx.fillStyle = `rgb(${baseR}, ${baseG}, ${baseB})`;
     ctx.fillRect(0, 0, 512, 512);
     
-    // Add texture detail
     for (let i = 0; i < 2000; i++) {
       const x = Math.random() * 512;
       const y = Math.random() * 512;
@@ -395,22 +397,31 @@ const RealisticSoilLayer = ({ moisture, soilPh }: { moisture: number; soilPh: nu
   );
 };
 
-const RealisticPlant = ({ 
+// Crop-specific plant with ripening fruits
+const CropPlant = ({ 
   position, 
   health,
   temperature,
   lightIntensity,
-  moisture 
+  moisture,
+  cropType,
+  growthProgress,
+  fruitColor,
+  hasFruit,
 }: { 
   position: [number, number, number];
   health: number;
   temperature: number;
   lightIntensity: number;
   moisture: number;
+  cropType: string;
+  growthProgress: number;
+  fruitColor: string;
+  hasFruit: boolean;
 }) => {
   const groupRef = useRef<THREE.Group>(null);
+  const fruitRef = useRef<THREE.Group>(null);
 
-  // Calculate wilting based on conditions
   const wiltFactor = useMemo(() => {
     let wilt = 0;
     if (moisture < 25) wilt += (25 - moisture) / 25 * 0.5;
@@ -421,19 +432,19 @@ const RealisticPlant = ({
 
   useFrame((state) => {
     if (groupRef.current) {
-      // Natural sway reduced when wilting
       const swayAmount = 0.03 * (1 - wiltFactor * 0.7);
       groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5 + position[0]) * swayAmount;
       groupRef.current.position.y = Math.sin(state.clock.elapsedTime + position[0]) * 0.02 * (1 - wiltFactor);
-      
-      // Wilting effect - droop
       groupRef.current.rotation.x = wiltFactor * 0.3;
+    }
+    // Gentle fruit animation
+    if (fruitRef.current && hasFruit) {
+      fruitRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.8 + position[0] * 2) * 0.05;
     }
   });
 
   const leafColor = useMemo(() => {
     const healthFactor = health / 100;
-    // Add browning for drought stress
     const brownFactor = moisture < 25 ? (25 - moisture) / 25 * 0.3 : 0;
     return new THREE.Color(
       0.1 + (1 - healthFactor) * 0.4 + brownFactor * 0.3,
@@ -444,48 +455,153 @@ const RealisticPlant = ({
 
   const scale = useMemo(() => {
     const baseScale = (0.6 + (health / 100) * 0.4) * (0.8 + (lightIntensity / 100) * 0.2);
-    return baseScale * (1 - wiltFactor * 0.3);
-  }, [health, lightIntensity, wiltFactor]);
+    return baseScale * (1 - wiltFactor * 0.3) * (0.5 + growthProgress * 0.5);
+  }, [health, lightIntensity, wiltFactor, growthProgress]);
+
+  // Crop-specific rendering
+  const renderCropSpecificParts = () => {
+    switch (cropType) {
+      case 'tomato':
+        return (
+          <>
+            {/* Tomato plant - bushy with red fruits */}
+            <mesh position={[0, 0.25, 0]} castShadow>
+              <cylinderGeometry args={[0.03, 0.05, 0.5 * scale, 8]} />
+              <meshStandardMaterial color="#3d5a2c" roughness={0.8} />
+            </mesh>
+            {[0, 1, 2, 3, 4].map((i) => {
+              const angle = (i / 5) * Math.PI * 2;
+              const height = 0.4 + i * 0.1;
+              const droopAngle = wiltFactor * 0.5;
+              return (
+                <mesh
+                  key={i}
+                  position={[Math.cos(angle) * 0.15, height * (1 - wiltFactor * 0.2) * scale, Math.sin(angle) * 0.15]}
+                  rotation={[angle + droopAngle, angle, angle]}
+                  castShadow
+                >
+                  <coneGeometry args={[0.12 * scale, 0.25 * scale, 6]} />
+                  <meshStandardMaterial color={leafColor} roughness={0.6} side={THREE.DoubleSide} />
+                </mesh>
+              );
+            })}
+            {/* Tomato fruits */}
+            {hasFruit && (
+              <group ref={fruitRef}>
+                <mesh position={[0.15, 0.35 * scale, 0.1]} castShadow>
+                  <sphereGeometry args={[0.08 * scale, 12, 12]} />
+                  <meshStandardMaterial color={fruitColor} roughness={0.3} metalness={0.1} />
+                </mesh>
+                <mesh position={[-0.1, 0.4 * scale, -0.12]} castShadow>
+                  <sphereGeometry args={[0.06 * scale, 12, 12]} />
+                  <meshStandardMaterial color={fruitColor} roughness={0.3} metalness={0.1} />
+                </mesh>
+              </group>
+            )}
+          </>
+        );
+
+      case 'chili':
+        return (
+          <>
+            {/* Chili plant - compact with hanging peppers */}
+            <mesh position={[0, 0.2, 0]} castShadow>
+              <cylinderGeometry args={[0.025, 0.04, 0.4 * scale, 8]} />
+              <meshStandardMaterial color="#2d4a1c" roughness={0.8} />
+            </mesh>
+            {[0, 1, 2, 3].map((i) => {
+              const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+              return (
+                <mesh
+                  key={i}
+                  position={[Math.cos(angle) * 0.12, 0.35 * scale, Math.sin(angle) * 0.12]}
+                  rotation={[0.3, angle, 0]}
+                  castShadow
+                >
+                  <coneGeometry args={[0.1 * scale, 0.2 * scale, 5]} />
+                  <meshStandardMaterial color={leafColor} roughness={0.5} side={THREE.DoubleSide} />
+                </mesh>
+              );
+            })}
+            {/* Chili peppers - elongated hanging */}
+            {hasFruit && (
+              <group ref={fruitRef}>
+                <mesh position={[0.1, 0.25 * scale, 0.08]} rotation={[0.8, 0, 0.2]} castShadow>
+                  <cylinderGeometry args={[0.015 * scale, 0.03 * scale, 0.12 * scale, 8]} />
+                  <meshStandardMaterial color={fruitColor} roughness={0.4} />
+                </mesh>
+                <mesh position={[-0.08, 0.28 * scale, -0.1]} rotation={[0.6, 0.3, -0.1]} castShadow>
+                  <cylinderGeometry args={[0.012 * scale, 0.025 * scale, 0.1 * scale, 8]} />
+                  <meshStandardMaterial color={fruitColor} roughness={0.4} />
+                </mesh>
+                <mesh position={[0.05, 0.22 * scale, -0.05]} rotation={[0.9, -0.2, 0.1]} castShadow>
+                  <cylinderGeometry args={[0.01 * scale, 0.02 * scale, 0.08 * scale, 8]} />
+                  <meshStandardMaterial color={fruitColor} roughness={0.4} />
+                </mesh>
+              </group>
+            )}
+          </>
+        );
+
+      case 'brinjal':
+        return (
+          <>
+            {/* Brinjal/Eggplant - sturdy stem with large leaves and hanging fruits */}
+            <mesh position={[0, 0.3, 0]} castShadow>
+              <cylinderGeometry args={[0.04, 0.06, 0.6 * scale, 8]} />
+              <meshStandardMaterial color="#4a3728" roughness={0.9} />
+            </mesh>
+            {[0, 1, 2, 3, 4].map((i) => {
+              const angle = (i / 5) * Math.PI * 2;
+              const height = 0.35 + i * 0.08;
+              return (
+                <mesh
+                  key={i}
+                  position={[Math.cos(angle) * 0.18, height * scale, Math.sin(angle) * 0.18]}
+                  rotation={[0.4 + wiltFactor * 0.3, angle, 0]}
+                  castShadow
+                >
+                  <sphereGeometry args={[0.14 * scale, 6, 4]} />
+                  <meshStandardMaterial color={leafColor} roughness={0.6} side={THREE.DoubleSide} />
+                </mesh>
+              );
+            })}
+            {/* Brinjal fruits - oval hanging */}
+            {hasFruit && (
+              <group ref={fruitRef}>
+                <mesh position={[0.12, 0.2 * scale, 0.1]} rotation={[0.3, 0, 0.1]} castShadow>
+                  <sphereGeometry args={[0.06 * scale, 12, 8]} />
+                  <meshStandardMaterial color={fruitColor} roughness={0.2} metalness={0.15} />
+                </mesh>
+                <mesh position={[-0.1, 0.25 * scale, -0.08]} rotation={[0.2, 0.2, -0.05]} castShadow>
+                  <sphereGeometry args={[0.05 * scale, 12, 8]} />
+                  <meshStandardMaterial color={fruitColor} roughness={0.2} metalness={0.15} />
+                </mesh>
+              </group>
+            )}
+          </>
+        );
+
+      default:
+        // Generic plant
+        return (
+          <>
+            <mesh position={[0, 0.25, 0]} castShadow>
+              <cylinderGeometry args={[0.03, 0.05, 0.5, 8]} />
+              <meshStandardMaterial color="#3d5a2c" roughness={0.8} />
+            </mesh>
+            <mesh position={[0, 0.5 * scale, 0]} castShadow>
+              <sphereGeometry args={[0.15 * scale, 8, 6]} />
+              <meshStandardMaterial color={leafColor} roughness={0.5} />
+            </mesh>
+          </>
+        );
+    }
+  };
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Main stem */}
-      <mesh position={[0, 0.25, 0]} castShadow>
-        <cylinderGeometry args={[0.03, 0.05, 0.5, 8]} />
-        <meshStandardMaterial color="#3d5a2c" roughness={0.8} />
-      </mesh>
-      
-      {/* Main leaf cluster */}
-      {[0, 1, 2, 3, 4].map((i) => {
-        const angle = (i / 5) * Math.PI * 2;
-        const height = 0.4 + i * 0.1;
-        const droopAngle = wiltFactor * 0.5;
-        return (
-          <mesh
-            key={i}
-            position={[
-              Math.cos(angle) * 0.15,
-              height * (1 - wiltFactor * 0.2),
-              Math.sin(angle) * 0.15
-            ]}
-            rotation={[angle + droopAngle, angle, angle]}
-            castShadow
-          >
-            <coneGeometry args={[0.12 * scale, 0.25 * scale, 6]} />
-            <meshStandardMaterial 
-              color={leafColor} 
-              roughness={0.6}
-              side={THREE.DoubleSide}
-            />
-          </mesh>
-        );
-      })}
-      
-      {/* Top leaves */}
-      <mesh position={[0, 0.6 * (1 - wiltFactor * 0.3), 0]} rotation={[wiltFactor * 0.2, 0, 0]} castShadow>
-        <sphereGeometry args={[0.15 * scale, 8, 6]} />
-        <meshStandardMaterial color={leafColor} roughness={0.5} />
-      </mesh>
+      {renderCropSpecificParts()}
     </group>
   );
 };
@@ -493,12 +609,8 @@ const RealisticPlant = ({
 const WaterDroplets = ({ todayRainfall, totalRainfall }: { todayRainfall: number; totalRainfall: number }) => {
   const pointsRef = useRef<THREE.Points>(null);
   
-  // Only show rain droplets when there's actual rainfall
-  // Today's rainfall has more impact on droplet count, total rainfall adds some background effect
   const particleCount = useMemo(() => {
     if (todayRainfall <= 0 && totalRainfall <= 0) return 0;
-    // Scale: today's rainfall (0-50mm) maps to 0-200 particles
-    // Total rainfall adds a subtle background (0-200mm) maps to 0-50 particles
     const todayDroplets = Math.floor((todayRainfall / 50) * 200);
     const totalDroplets = Math.floor((totalRainfall / 200) * 50);
     return Math.min(300, todayDroplets + totalDroplets);
@@ -514,7 +626,6 @@ const WaterDroplets = ({ todayRainfall, totalRainfall }: { todayRainfall: number
       pos[i * 3 + 1] = Math.random() * 3 - 0.3;
       pos[i * 3 + 2] = (Math.random() - 0.5) * 8;
       
-      // Droplet speed based on rainfall intensity
       const speedFactor = 1 + (todayRainfall / 50) * 0.5;
       vel[i * 3] = (Math.random() - 0.5) * 0.01;
       vel[i * 3 + 1] = (-Math.random() * 0.02 - 0.01) * speedFactor;
@@ -625,27 +736,28 @@ const SensorPole = ({ position, label, value }: { position: [number, number, num
         <boxGeometry args={[0.15, 0.15, 0.05]} />
         <meshStandardMaterial color="#1976d2" emissive="#1976d2" emissiveIntensity={0.3} />
       </mesh>
-      <Text
-        position={[0, 1.4, 0]}
-        fontSize={0.12}
-        color="#ffffff"
-        anchorX="center"
-      >
+      <Text position={[0, 1.4, 0]} fontSize={0.12} color="#ffffff" anchorX="center">
         {label}
       </Text>
-      <Text
-        position={[0, 1.25, 0]}
-        fontSize={0.15}
-        color="#4caf50"
-        anchorX="center"
-      >
+      <Text position={[0, 1.25, 0]} fontSize={0.15} color="#4caf50" anchorX="center">
         {value}
       </Text>
     </group>
   );
 };
 
-const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall }: FieldProps) => {
+const Scene = ({ 
+  moisture, 
+  temperature, 
+  soilPh, 
+  lightIntensity, 
+  humidity, 
+  todayRainfall, 
+  totalRainfall,
+  selectedCrop = 'tomato',
+  currentWeek = 1,
+  ripenessDay = 0,
+}: FieldProps) => {
   const plantHealth = useMemo(() => {
     let health = 100;
     if (moisture < 30) health -= (30 - moisture);
@@ -661,13 +773,32 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
   const sunIntensity = useMemo(() => lightIntensity / 100, [lightIntensity]);
   const isIrrigating = moisture < 40;
 
-  // Sky color based on conditions
+  // Get crop-specific data
+  const cropData = CROP_RIPENESS_DATA[selectedCrop];
+  const fruitStartWeek = cropData?.fruitStartWeek || 11;
+  const hasFruit = currentWeek >= fruitStartWeek;
+
+  // Calculate ripeness and fruit color
+  const ripeningSpeed = calculateRipeningSpeed(selectedCrop, temperature);
+  const currentStage = getCurrentRipenessStage(selectedCrop, ripenessDay, ripeningSpeed);
+  const fruitColor = currentStage?.color || '#4CAF50';
+
+  // Growth progress (0-1)
+  const growthProgress = useMemo(() => {
+    const totalWeeks = cropData?.fruitStartWeek ? cropData.fruitStartWeek + 5 : 16;
+    return Math.min(1, currentWeek / totalWeeks);
+  }, [currentWeek, cropData]);
+
   const skyTurbidity = useMemo(() => {
-    if (temperature > 35) return 12; // Hazy hot day
-    if (humidity > 80) return 10; // Humid/overcast
-    if (todayRainfall > 5) return 14; // Rainy/overcast
+    if (temperature > 35) return 12;
+    if (humidity > 80) return 10;
+    if (todayRainfall > 5) return 14;
     return 8;
   }, [temperature, humidity, todayRainfall]);
+
+  // Crop emoji for display
+  const cropEmoji = cropData?.icon || '🌱';
+  const cropName = cropData?.cropName || 'Plant';
 
   return (
     <>
@@ -700,7 +831,6 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
 
       <RealisticSoilLayer moisture={moisture} soilPh={soilPh} />
       
-      {/* Environmental effects */}
       <CrackedSoilOverlay moisture={moisture} />
       <DustParticles moisture={moisture} temperature={temperature} />
       <HeatShimmer temperature={temperature} />
@@ -719,41 +849,68 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
       <WaterDroplets key={`${todayRainfall}-${totalRainfall}`} todayRainfall={todayRainfall} totalRainfall={totalRainfall} />
       <IrrigationSystem active={isIrrigating} />
 
-      {/* Sensor poles */}
       <SensorPole position={[4, 0, 4]} label="Moisture" value={`${moisture}%`} />
       <SensorPole position={[4, 0, -4]} label="Temp" value={`${temperature}°C`} />
       <SensorPole position={[-4, 0, 4]} label="pH" value={soilPh.toFixed(1)} />
 
-      {/* Plant field - 6x6 grid */}
+      {/* Crop-specific plant field - 6x6 grid */}
       {Array.from({ length: 6 }).map((_, x) =>
         Array.from({ length: 6 }).map((_, z) => (
-          <RealisticPlant
+          <CropPlant
             key={`${x}-${z}`}
             position={[(x - 2.5) * 1.3, 0, (z - 2.5) * 1.3]}
             health={plantHealth + (Math.random() - 0.5) * 10}
             temperature={temperature}
             lightIntensity={lightIntensity}
             moisture={moisture}
+            cropType={selectedCrop}
+            growthProgress={growthProgress}
+            fruitColor={fruitColor}
+            hasFruit={hasFruit}
           />
         ))
       )}
 
-      {/* Health indicator */}
+      {/* Crop and Health indicator */}
       <Text
-        position={[0, 3, 0]}
-        fontSize={0.4}
-        color={plantHealth > 70 ? '#4caf50' : plantHealth > 40 ? '#ff9800' : '#f44336'}
+        position={[0, 3.3, 0]}
+        fontSize={0.35}
+        color="#ffffff"
         anchorX="center"
         outlineWidth={0.02}
         outlineColor="#000000"
       >
-        Field Health: {plantHealth.toFixed(0)}%
+        {cropEmoji} {cropName} Field
       </Text>
+      <Text
+        position={[0, 2.9, 0]}
+        fontSize={0.3}
+        color={plantHealth > 70 ? '#4caf50' : plantHealth > 40 ? '#ff9800' : '#f44336'}
+        anchorX="center"
+        outlineWidth={0.015}
+        outlineColor="#000000"
+      >
+        Health: {plantHealth.toFixed(0)}% | Week {currentWeek}
+      </Text>
+
+      {/* Ripeness indicator when fruit is present */}
+      {hasFruit && (
+        <Text
+          position={[0, 2.55, 0]}
+          fontSize={0.22}
+          color={fruitColor}
+          anchorX="center"
+          outlineWidth={0.01}
+          outlineColor="#000000"
+        >
+          Ripeness: {currentStage?.name || 'Developing'}
+        </Text>
+      )}
 
       {isIrrigating && (
         <Text
-          position={[0, 2.5, 0]}
-          fontSize={0.25}
+          position={[0, 2.2, 0]}
+          fontSize={0.2}
           color="#2196f3"
           anchorX="center"
         >
@@ -771,13 +928,23 @@ const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayR
       />
       <Environment preset="sunset" />
       
-      {/* Ground fog effect */}
       <fog attach="fog" args={['#e8f5e9', 10, 40]} />
     </>
   );
 };
 
-const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall }: FieldProps) => {
+const VirtualField3D = ({ 
+  moisture, 
+  temperature, 
+  soilPh, 
+  lightIntensity, 
+  humidity, 
+  todayRainfall, 
+  totalRainfall,
+  selectedCrop = 'tomato',
+  currentWeek = 1,
+  ripenessDay = 0,
+}: FieldProps) => {
   return (
     <div className="w-full h-[600px] rounded-lg overflow-hidden border-2 border-primary/20 shadow-2xl bg-gradient-to-b from-sky-200 to-green-100">
       <Canvas
@@ -793,6 +960,9 @@ const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidit
           humidity={humidity}
           todayRainfall={todayRainfall}
           totalRainfall={totalRainfall}
+          selectedCrop={selectedCrop}
+          currentWeek={currentWeek}
+          ripenessDay={ripenessDay}
         />
       </Canvas>
     </div>
