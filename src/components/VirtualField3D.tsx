@@ -15,8 +15,8 @@ interface FieldProps {
   currentWeek?: number;
 }
 
-// Simple stylized plant - like the screenshot shows
-const SimplePlant = ({ 
+// Tomato plant - bushy with round foliage and red fruits
+const TomatoPlant = ({ 
   position, 
   plantId,
   growth 
@@ -29,39 +29,171 @@ const SimplePlant = ({
 
   useFrame((state) => {
     if (groupRef.current) {
-      // Subtle sway
       groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.8 + plantId * 0.5) * 0.02;
     }
   });
 
-  const plantHeight = 0.3 + growth * 0.4;
-  const leafSize = 0.08 + growth * 0.06;
+  const plantHeight = 0.35 + growth * 0.45;
+  const leafSize = 0.1 + growth * 0.08;
 
   return (
     <group ref={groupRef} position={position}>
       {/* Main stem */}
       <mesh position={[0, plantHeight / 2, 0]}>
-        <cylinderGeometry args={[0.02, 0.025, plantHeight, 6]} />
+        <cylinderGeometry args={[0.025, 0.03, plantHeight, 6]} />
         <meshStandardMaterial color="#4a7c34" />
       </mesh>
       
-      {/* Top foliage - cone shape like in screenshot */}
-      <mesh position={[0, plantHeight + leafSize * 0.8, 0]}>
-        <coneGeometry args={[leafSize * 1.2, leafSize * 2, 6]} />
-        <meshStandardMaterial color="#5cb85c" />
+      {/* Bushy foliage layers */}
+      <mesh position={[0, plantHeight + leafSize * 0.5, 0]}>
+        <sphereGeometry args={[leafSize * 1.3, 8, 6]} />
+        <meshStandardMaterial color="#4caf50" />
       </mesh>
       
-      {/* Middle leaves */}
-      <mesh position={[0, plantHeight * 0.7, 0]}>
-        <coneGeometry args={[leafSize * 0.9, leafSize * 1.5, 6]} />
-        <meshStandardMaterial color="#6bc46b" />
+      <mesh position={[0, plantHeight * 0.65, 0]}>
+        <sphereGeometry args={[leafSize * 1.1, 8, 6]} />
+        <meshStandardMaterial color="#66bb6a" />
       </mesh>
       
-      {/* Lower leaves */}
-      <mesh position={[0, plantHeight * 0.4, 0]}>
-        <coneGeometry args={[leafSize * 0.7, leafSize * 1.2, 6]} />
-        <meshStandardMaterial color="#7ed07e" />
+      {/* Tomato fruits when grown */}
+      {growth > 0.6 && (
+        <>
+          <mesh position={[leafSize * 0.8, plantHeight * 0.5, 0]}>
+            <sphereGeometry args={[0.05 + growth * 0.03, 8, 8]} />
+            <meshStandardMaterial color="#e53935" />
+          </mesh>
+          <mesh position={[-leafSize * 0.6, plantHeight * 0.4, leafSize * 0.5]}>
+            <sphereGeometry args={[0.04 + growth * 0.02, 8, 8]} />
+            <meshStandardMaterial color="#ff7043" />
+          </mesh>
+        </>
+      )}
+    </group>
+  );
+};
+
+// Chili plant - slender with elongated peppers
+const ChiliPlant = ({ 
+  position, 
+  plantId,
+  growth 
+}: { 
+  position: [number, number, number];
+  plantId: number;
+  growth: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.9 + plantId * 0.6) * 0.025;
+    }
+  });
+
+  const plantHeight = 0.3 + growth * 0.4;
+  const leafSize = 0.07 + growth * 0.05;
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Main stem */}
+      <mesh position={[0, plantHeight / 2, 0]}>
+        <cylinderGeometry args={[0.018, 0.022, plantHeight, 6]} />
+        <meshStandardMaterial color="#558b2f" />
       </mesh>
+      
+      {/* Pointed foliage */}
+      <mesh position={[0, plantHeight + leafSize, 0]}>
+        <coneGeometry args={[leafSize * 0.8, leafSize * 2.5, 6]} />
+        <meshStandardMaterial color="#7cb342" />
+      </mesh>
+      
+      <mesh position={[leafSize * 0.5, plantHeight * 0.7, 0]} rotation={[0, 0, 0.3]}>
+        <coneGeometry args={[leafSize * 0.6, leafSize * 1.8, 5]} />
+        <meshStandardMaterial color="#8bc34a" />
+      </mesh>
+      
+      <mesh position={[-leafSize * 0.5, plantHeight * 0.6, leafSize * 0.3]} rotation={[0, 0, -0.3]}>
+        <coneGeometry args={[leafSize * 0.5, leafSize * 1.5, 5]} />
+        <meshStandardMaterial color="#9ccc65" />
+      </mesh>
+      
+      {/* Chili peppers when grown */}
+      {growth > 0.5 && (
+        <>
+          <mesh position={[leafSize * 0.6, plantHeight * 0.45, 0]} rotation={[0.2, 0, 0.5]}>
+            <capsuleGeometry args={[0.02, 0.08 * growth, 4, 8]} />
+            <meshStandardMaterial color="#d32f2f" />
+          </mesh>
+          <mesh position={[-leafSize * 0.4, plantHeight * 0.35, leafSize * 0.4]} rotation={[0.3, 0.5, -0.4]}>
+            <capsuleGeometry args={[0.018, 0.07 * growth, 4, 8]} />
+            <meshStandardMaterial color="#ff5722" />
+          </mesh>
+        </>
+      )}
+    </group>
+  );
+};
+
+// Brinjal plant - broad leaves with purple fruits
+const BrinjalPlant = ({ 
+  position, 
+  plantId,
+  growth 
+}: { 
+  position: [number, number, number];
+  plantId: number;
+  growth: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.7 + plantId * 0.4) * 0.015;
+    }
+  });
+
+  const plantHeight = 0.35 + growth * 0.5;
+  const leafSize = 0.12 + growth * 0.1;
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Thick stem */}
+      <mesh position={[0, plantHeight / 2, 0]}>
+        <cylinderGeometry args={[0.03, 0.04, plantHeight, 6]} />
+        <meshStandardMaterial color="#33691e" />
+      </mesh>
+      
+      {/* Broad leaves - flattened spheres */}
+      <mesh position={[0, plantHeight + leafSize * 0.3, 0]} scale={[1.4, 0.6, 1.4]}>
+        <sphereGeometry args={[leafSize, 8, 6]} />
+        <meshStandardMaterial color="#2e7d32" />
+      </mesh>
+      
+      <mesh position={[leafSize * 0.6, plantHeight * 0.6, 0]} scale={[1.2, 0.5, 1.2]} rotation={[0, 0, 0.2]}>
+        <sphereGeometry args={[leafSize * 0.8, 8, 6]} />
+        <meshStandardMaterial color="#388e3c" />
+      </mesh>
+      
+      <mesh position={[-leafSize * 0.5, plantHeight * 0.5, leafSize * 0.4]} scale={[1.1, 0.5, 1.1]} rotation={[0, 0, -0.15]}>
+        <sphereGeometry args={[leafSize * 0.7, 8, 6]} />
+        <meshStandardMaterial color="#43a047" />
+      </mesh>
+      
+      {/* Brinjal fruits when grown */}
+      {growth > 0.5 && (
+        <>
+          <mesh position={[0, plantHeight * 0.35, leafSize * 0.5]} rotation={[0.4, 0, 0]}>
+            <capsuleGeometry args={[0.04, 0.1 * growth, 8, 12]} />
+            <meshStandardMaterial color="#5e35b1" />
+          </mesh>
+          {growth > 0.7 && (
+            <mesh position={[leafSize * 0.5, plantHeight * 0.25, -leafSize * 0.3]} rotation={[0.3, 0.5, 0.2]}>
+              <capsuleGeometry args={[0.035, 0.08 * growth, 8, 12]} />
+              <meshStandardMaterial color="#7e57c2" />
+            </mesh>
+          )}
+        </>
+      )}
     </group>
   );
 };
@@ -116,7 +248,7 @@ const calculateGrowthFactor = (moisture: number, temperature: number, plantId: n
   return baseGrowth * variation;
 };
 
-const Scene = ({ moisture, temperature }: FieldProps) => {
+const Scene = ({ moisture, temperature, selectedCrop = 'tomato' }: FieldProps) => {
   const plantHealth = useMemo(() => {
     let health = 100;
     if (moisture < 30) health -= (30 - moisture);
@@ -149,6 +281,13 @@ const Scene = ({ moisture, temperature }: FieldProps) => {
     return plantList;
   }, [moisture, temperature]);
 
+  // Select plant component based on crop type
+  const PlantComponent = selectedCrop === 'chili' 
+    ? ChiliPlant 
+    : selectedCrop === 'brinjal' 
+      ? BrinjalPlant 
+      : TomatoPlant;
+
   return (
     <>
       {/* Simple lighting */}
@@ -164,7 +303,7 @@ const Scene = ({ moisture, temperature }: FieldProps) => {
       
       {/* Plants grid */}
       {plants.map((plant, index) => (
-        <SimplePlant
+        <PlantComponent
           key={index}
           position={plant.position}
           plantId={plant.plantId}
