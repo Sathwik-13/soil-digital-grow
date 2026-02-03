@@ -20,8 +20,6 @@ import CropSelector from "@/components/CropSelector";
 import CropTimeline from "@/components/CropTimeline";
 import DiseaseDetection from "@/components/DiseaseDetection";
 import TomatoRipeness from "@/components/TomatoRipeness";
-import ChiliRipeness from "@/components/ChiliRipeness";
-import BrinjalRipeness from "@/components/BrinjalRipeness";
 import { CROP_DATA, getCurrentStage, calculatePlantHealth  } from "@/data/cropData";
 import heroImage from "@/assets/hero-farm-fields.jpg";
 import tomatoImage from "@/assets/tomato-field.jpg";
@@ -872,8 +870,6 @@ const Dashboard = () => {
               humidity={humidity}
               todayRainfall={todayRainfall}
               totalRainfall={totalRainfall}
-              selectedCrop={selectedCrop}
-              currentWeek={currentWeek}
             />
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
               <Button onClick={() => setActiveGraph("moisture")} variant="outline" size="sm" className="gap-2">
@@ -913,23 +909,9 @@ const Dashboard = () => {
         {/* Crop Timeline Visualization */}
         <CropTimeline selectedCrop={selectedCrop} currentWeek={currentWeek} />
 
-        {/* Crop-specific Ripeness Tracker */}
+        {/* Tomato Ripeness Tracker - Only for Tomato crop */}
         {selectedCrop === "tomato" && (
           <TomatoRipeness
-            temperature={temperature}
-            moisture={moisture}
-            currentWeek={currentWeek}
-          />
-        )}
-        {selectedCrop === "chili" && (
-          <ChiliRipeness
-            temperature={temperature}
-            moisture={moisture}
-            currentWeek={currentWeek}
-          />
-        )}
-        {selectedCrop === "brinjal" && (
-          <BrinjalRipeness
             temperature={temperature}
             moisture={moisture}
             currentWeek={currentWeek}

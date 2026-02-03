@@ -1,7 +1,8 @@
-import { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text } from '@react-three/drei';
+import { useRef, useMemo, useEffect, useState } from 'react';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { OrbitControls, Text, Environment, Sky, Cloud, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
+import crackedSoilTexture from '@/assets/cracked-soil-texture.png';
 
 interface FieldProps {
   moisture: number;
@@ -11,227 +12,630 @@ interface FieldProps {
   humidity: number;
   todayRainfall: number;
   totalRainfall: number;
-  selectedCrop?: string;
-  currentWeek?: number;
 }
 
-// Tomato plant - bushy with round foliage and red fruits
-const TomatoPlant = ({ 
-  position, 
-  plantId,
-  growth 
-}: { 
-  position: [number, number, number];
-  plantId: number;
-  growth: number;
-}) => {
-  const groupRef = useRef<THREE.Group>(null);
+// Realistic dried mud cracks using actual texture
+const CrackedSoilOverlay = ({ moisture }: { moisture: number }) => {
+  const crackIntensity = useMemo(() => Math.max(0, (20 - moisture) / 20), [moisture]);
+  const texture = useTexture(crackedSoilTexture);
+  
+  useMemo(() => {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(2, 2);
+  }, [texture]);
 
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.8 + plantId * 0.5) * 0.02;
-    }
-  });
-
-  const plantHeight = 0.35 + growth * 0.45;
-  const leafSize = 0.1 + growth * 0.08;
+  if (crackIntensity <= 0) return null;
 
   return (
-    <group ref={groupRef} position={position}>
-      {/* Main stem */}
-      <mesh position={[0, plantHeight / 2, 0]}>
-        <cylinderGeometry args={[0.025, 0.03, plantHeight, 6]} />
-        <meshStandardMaterial color="#4a7c34" />
-      </mesh>
-      
-      {/* Bushy foliage layers */}
-      <mesh position={[0, plantHeight + leafSize * 0.5, 0]}>
-        <sphereGeometry args={[leafSize * 1.3, 8, 6]} />
-        <meshStandardMaterial color="#4caf50" />
-      </mesh>
-      
-      <mesh position={[0, plantHeight * 0.65, 0]}>
-        <sphereGeometry args={[leafSize * 1.1, 8, 6]} />
-        <meshStandardMaterial color="#66bb6a" />
-      </mesh>
-      
-      {/* Tomato fruits when grown */}
-      {growth > 0.6 && (
-        <>
-          <mesh position={[leafSize * 0.8, plantHeight * 0.5, 0]}>
-            <sphereGeometry args={[0.05 + growth * 0.03, 8, 8]} />
-            <meshStandardMaterial color="#e53935" />
-          </mesh>
-          <mesh position={[-leafSize * 0.6, plantHeight * 0.4, leafSize * 0.5]}>
-            <sphereGeometry args={[0.04 + growth * 0.02, 8, 8]} />
-            <meshStandardMaterial color="#ff7043" />
-          </mesh>
-        </>
-      )}
-    </group>
-  );
-};
-
-// Chili plant - slender with elongated peppers
-const ChiliPlant = ({ 
-  position, 
-  plantId,
-  growth 
-}: { 
-  position: [number, number, number];
-  plantId: number;
-  growth: number;
-}) => {
-  const groupRef = useRef<THREE.Group>(null);
-
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.9 + plantId * 0.6) * 0.025;
-    }
-  });
-
-  const plantHeight = 0.3 + growth * 0.4;
-  const leafSize = 0.07 + growth * 0.05;
-
-  return (
-    <group ref={groupRef} position={position}>
-      {/* Main stem */}
-      <mesh position={[0, plantHeight / 2, 0]}>
-        <cylinderGeometry args={[0.018, 0.022, plantHeight, 6]} />
-        <meshStandardMaterial color="#558b2f" />
-      </mesh>
-      
-      {/* Pointed foliage */}
-      <mesh position={[0, plantHeight + leafSize, 0]}>
-        <coneGeometry args={[leafSize * 0.8, leafSize * 2.5, 6]} />
-        <meshStandardMaterial color="#7cb342" />
-      </mesh>
-      
-      <mesh position={[leafSize * 0.5, plantHeight * 0.7, 0]} rotation={[0, 0, 0.3]}>
-        <coneGeometry args={[leafSize * 0.6, leafSize * 1.8, 5]} />
-        <meshStandardMaterial color="#8bc34a" />
-      </mesh>
-      
-      <mesh position={[-leafSize * 0.5, plantHeight * 0.6, leafSize * 0.3]} rotation={[0, 0, -0.3]}>
-        <coneGeometry args={[leafSize * 0.5, leafSize * 1.5, 5]} />
-        <meshStandardMaterial color="#9ccc65" />
-      </mesh>
-      
-      {/* Chili peppers when grown */}
-      {growth > 0.5 && (
-        <>
-          <mesh position={[leafSize * 0.6, plantHeight * 0.45, 0]} rotation={[0.2, 0, 0.5]}>
-            <capsuleGeometry args={[0.02, 0.08 * growth, 4, 8]} />
-            <meshStandardMaterial color="#d32f2f" />
-          </mesh>
-          <mesh position={[-leafSize * 0.4, plantHeight * 0.35, leafSize * 0.4]} rotation={[0.3, 0.5, -0.4]}>
-            <capsuleGeometry args={[0.018, 0.07 * growth, 4, 8]} />
-            <meshStandardMaterial color="#ff5722" />
-          </mesh>
-        </>
-      )}
-    </group>
-  );
-};
-
-// Brinjal plant - broad leaves with purple fruits
-const BrinjalPlant = ({ 
-  position, 
-  plantId,
-  growth 
-}: { 
-  position: [number, number, number];
-  plantId: number;
-  growth: number;
-}) => {
-  const groupRef = useRef<THREE.Group>(null);
-
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.7 + plantId * 0.4) * 0.015;
-    }
-  });
-
-  const plantHeight = 0.35 + growth * 0.5;
-  const leafSize = 0.12 + growth * 0.1;
-
-  return (
-    <group ref={groupRef} position={position}>
-      {/* Thick stem */}
-      <mesh position={[0, plantHeight / 2, 0]}>
-        <cylinderGeometry args={[0.03, 0.04, plantHeight, 6]} />
-        <meshStandardMaterial color="#33691e" />
-      </mesh>
-      
-      {/* Broad leaves - flattened spheres */}
-      <mesh position={[0, plantHeight + leafSize * 0.3, 0]} scale={[1.4, 0.6, 1.4]}>
-        <sphereGeometry args={[leafSize, 8, 6]} />
-        <meshStandardMaterial color="#2e7d32" />
-      </mesh>
-      
-      <mesh position={[leafSize * 0.6, plantHeight * 0.6, 0]} scale={[1.2, 0.5, 1.2]} rotation={[0, 0, 0.2]}>
-        <sphereGeometry args={[leafSize * 0.8, 8, 6]} />
-        <meshStandardMaterial color="#388e3c" />
-      </mesh>
-      
-      <mesh position={[-leafSize * 0.5, plantHeight * 0.5, leafSize * 0.4]} scale={[1.1, 0.5, 1.1]} rotation={[0, 0, -0.15]}>
-        <sphereGeometry args={[leafSize * 0.7, 8, 6]} />
-        <meshStandardMaterial color="#43a047" />
-      </mesh>
-      
-      {/* Brinjal fruits when grown */}
-      {growth > 0.5 && (
-        <>
-          <mesh position={[0, plantHeight * 0.35, leafSize * 0.5]} rotation={[0.4, 0, 0]}>
-            <capsuleGeometry args={[0.04, 0.1 * growth, 8, 12]} />
-            <meshStandardMaterial color="#5e35b1" />
-          </mesh>
-          {growth > 0.7 && (
-            <mesh position={[leafSize * 0.5, plantHeight * 0.25, -leafSize * 0.3]} rotation={[0.3, 0.5, 0.2]}>
-              <capsuleGeometry args={[0.035, 0.08 * growth, 8, 12]} />
-              <meshStandardMaterial color="#7e57c2" />
-            </mesh>
-          )}
-        </>
-      )}
-    </group>
-  );
-};
-
-// Flat soil field
-const SoilField = () => {
-  return (
-    <mesh position={[0, -0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+    <mesh position={[0, -0.47, 0]} rotation={[-Math.PI / 2, 0, 0]}>
       <planeGeometry args={[10, 10]} />
       <meshStandardMaterial 
-        color="#5d4037"
-        roughness={0.9}
+        map={texture}
+        transparent
+        opacity={crackIntensity}
+        roughness={1}
         metalness={0}
       />
     </mesh>
   );
 };
 
-// Sensor pole component - matches the screenshot
+// Dust particles for dry soil
+const DustParticles = ({ moisture, temperature }: { moisture: number; temperature: number }) => {
+  const pointsRef = useRef<THREE.Points>(null);
+  const dustIntensity = useMemo(() => Math.max(0, (30 - moisture) / 30) * (temperature > 25 ? 1.5 : 1), [moisture, temperature]);
+  
+  const particleCount = useMemo(() => Math.floor(dustIntensity * 100), [dustIntensity]);
+
+  const [positions, velocities] = useMemo(() => {
+    if (particleCount === 0) return [new Float32Array(0), new Float32Array(0)];
+    const pos = new Float32Array(particleCount * 3);
+    const vel = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 10;
+      pos[i * 3 + 1] = Math.random() * 2;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 10;
+      
+      vel[i * 3] = (Math.random() - 0.3) * 0.02;
+      vel[i * 3 + 1] = (Math.random() - 0.5) * 0.005;
+      vel[i * 3 + 2] = (Math.random() - 0.5) * 0.01;
+    }
+    
+    return [pos, vel];
+  }, [particleCount]);
+
+  useFrame(() => {
+    if (pointsRef.current && particleCount > 0) {
+      const pos = pointsRef.current.geometry.attributes.position.array as Float32Array;
+      
+      for (let i = 0; i < pos.length / 3; i++) {
+        pos[i * 3] += velocities[i * 3];
+        pos[i * 3 + 1] += velocities[i * 3 + 1];
+        pos[i * 3 + 2] += velocities[i * 3 + 2];
+        
+        if (pos[i * 3] > 5 || pos[i * 3] < -5) {
+          pos[i * 3] = (Math.random() - 0.5) * 10;
+        }
+        if (pos[i * 3 + 1] > 2.5) {
+          pos[i * 3 + 1] = 0;
+        }
+      }
+      
+      pointsRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+  });
+
+  if (particleCount === 0) return null;
+
+  return (
+    <points ref={pointsRef} key={`dust-${particleCount}`}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={positions.length / 3}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial 
+        size={0.08} 
+        color="#c4a574" 
+        transparent 
+        opacity={0.4 * dustIntensity}
+        sizeAttenuation
+      />
+    </points>
+  );
+};
+
+// Heat shimmer effect for high temperature
+const HeatShimmer = ({ temperature }: { temperature: number }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const heatIntensity = useMemo(() => Math.max(0, (temperature - 30) / 20), [temperature]);
+
+  useFrame((state) => {
+    if (meshRef.current && heatIntensity > 0) {
+      const material = meshRef.current.material as THREE.MeshStandardMaterial;
+      material.opacity = 0.1 + Math.sin(state.clock.elapsedTime * 3) * 0.05 * heatIntensity;
+    }
+  });
+
+  if (heatIntensity <= 0) return null;
+
+  return (
+    <mesh ref={meshRef} position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[12, 12]} />
+      <meshStandardMaterial 
+        color="#ffaa00"
+        transparent
+        opacity={0.1 * heatIntensity}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+};
+
+// Frost crystals for low temperature
+const FrostCrystals = ({ temperature }: { temperature: number }) => {
+  const frostIntensity = useMemo(() => Math.max(0, (10 - temperature) / 15), [temperature]);
+
+  const crystals = useMemo(() => {
+    if (frostIntensity <= 0) return [];
+    const count = Math.floor(frostIntensity * 40) + 10;
+    return Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 9,
+      z: (Math.random() - 0.5) * 9,
+      scale: 0.05 + Math.random() * 0.1,
+      rotation: Math.random() * Math.PI * 2,
+    }));
+  }, [frostIntensity]);
+
+  if (frostIntensity <= 0) return null;
+
+  return (
+    <group>
+      {crystals.map((crystal, i) => (
+        <mesh
+          key={i}
+          position={[crystal.x, -0.45, crystal.z]}
+          rotation={[0, crystal.rotation, 0]}
+          scale={crystal.scale}
+        >
+          <octahedronGeometry args={[1, 0]} />
+          <meshStandardMaterial 
+            color="#e0f7fa"
+            transparent
+            opacity={0.7 * frostIntensity}
+            metalness={0.3}
+            roughness={0.1}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Salt deposits for high pH
+const SaltDeposits = ({ soilPh }: { soilPh: number }) => {
+  const saltIntensity = useMemo(() => Math.max(0, (soilPh - 7.5) / 2), [soilPh]);
+
+  const deposits = useMemo(() => {
+    if (saltIntensity <= 0) return [];
+    const count = Math.floor(saltIntensity * 25) + 5;
+    return Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 8,
+      z: (Math.random() - 0.5) * 8,
+      scaleX: 0.1 + Math.random() * 0.3,
+      scaleZ: 0.1 + Math.random() * 0.3,
+    }));
+  }, [saltIntensity]);
+
+  if (saltIntensity <= 0) return null;
+
+  return (
+    <group>
+      {deposits.map((deposit, i) => (
+        <mesh
+          key={i}
+          position={[deposit.x, -0.47, deposit.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <circleGeometry args={[deposit.scaleX, 8]} />
+          <meshStandardMaterial 
+            color="#f5f5f5"
+            transparent
+            opacity={0.6 * saltIntensity}
+            roughness={0.9}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Acid burn patches for low pH
+const AcidPatches = ({ soilPh }: { soilPh: number }) => {
+  const acidIntensity = useMemo(() => Math.max(0, (5.5 - soilPh) / 2), [soilPh]);
+
+  const patches = useMemo(() => {
+    if (acidIntensity <= 0) return [];
+    const count = Math.floor(acidIntensity * 20) + 5;
+    return Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 8,
+      z: (Math.random() - 0.5) * 8,
+      scale: 0.15 + Math.random() * 0.35,
+    }));
+  }, [acidIntensity]);
+
+  if (acidIntensity <= 0) return null;
+
+  return (
+    <group>
+      {patches.map((patch, i) => (
+        <mesh
+          key={i}
+          position={[patch.x, -0.46, patch.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <circleGeometry args={[patch.scale, 12]} />
+          <meshStandardMaterial 
+            color="#5d4037"
+            transparent
+            opacity={0.7 * acidIntensity}
+            roughness={1}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Waterlogging puddles for high moisture
+const WaterPuddles = ({ moisture }: { moisture: number }) => {
+  const puddleIntensity = useMemo(() => Math.max(0, (moisture - 75) / 25), [moisture]);
+
+  const puddles = useMemo(() => {
+    if (puddleIntensity <= 0) return [];
+    const count = Math.floor(puddleIntensity * 12) + 3;
+    return Array.from({ length: count }, () => ({
+      x: (Math.random() - 0.5) * 7,
+      z: (Math.random() - 0.5) * 7,
+      scaleX: 0.3 + Math.random() * 0.6,
+      scaleZ: 0.2 + Math.random() * 0.4,
+    }));
+  }, [puddleIntensity]);
+
+  if (puddleIntensity <= 0) return null;
+
+  return (
+    <group>
+      {puddles.map((puddle, i) => (
+        <mesh
+          key={i}
+          position={[puddle.x, -0.44, puddle.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[puddle.scaleX, puddle.scaleZ, 1]}
+        >
+          <circleGeometry args={[1, 16]} />
+          <meshStandardMaterial 
+            color="#1e88e5"
+            transparent
+            opacity={0.5 * puddleIntensity}
+            metalness={0.3}
+            roughness={0.1}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+};
+
+// Status warning indicators floating above field
+const StatusIndicators = ({ moisture, temperature, soilPh, lightIntensity, humidity }: Omit<FieldProps, 'todayRainfall' | 'totalRainfall'>) => {
+  const warnings = useMemo(() => {
+    const w: { text: string; color: string; position: [number, number, number] }[] = [];
+    
+    if (moisture < 20) {
+      w.push({ text: "⚠️ Severe Drought", color: "#ff5722", position: [-3, 2.3, 0] });
+    } else if (moisture < 30) {
+      w.push({ text: "🏜️ Low Moisture", color: "#ff9800", position: [-3, 2.3, 0] });
+    }
+    
+    if (moisture > 80) {
+      w.push({ text: "💧 Waterlogging Risk", color: "#2196f3", position: [3, 2.3, 0] });
+    }
+    
+    if (temperature > 40) {
+      w.push({ text: "🔥 Heat Stress", color: "#f44336", position: [-3, 2, 2] });
+    } else if (temperature < 5) {
+      w.push({ text: "❄️ Frost Warning", color: "#00bcd4", position: [-3, 2, 2] });
+    }
+    
+    if (soilPh > 8) {
+      w.push({ text: "⚗️ High Alkalinity", color: "#9c27b0", position: [3, 2, 2] });
+    } else if (soilPh < 5.5) {
+      w.push({ text: "⚗️ High Acidity", color: "#ff5722", position: [3, 2, 2] });
+    }
+    
+    if (lightIntensity < 30) {
+      w.push({ text: "🌑 Low Light", color: "#607d8b", position: [0, 2.3, 3] });
+    }
+    
+    if (humidity > 90) {
+      w.push({ text: "💨 High Humidity", color: "#03a9f4", position: [0, 2, -3] });
+    }
+    
+    return w;
+  }, [moisture, temperature, soilPh, lightIntensity, humidity]);
+
+  return (
+    <group>
+      {warnings.map((warning, i) => (
+        <Text
+          key={i}
+          position={warning.position}
+          fontSize={0.2}
+          color={warning.color}
+          anchorX="center"
+          outlineWidth={0.01}
+          outlineColor="#000000"
+        >
+          {warning.text}
+        </Text>
+      ))}
+    </group>
+  );
+};
+
+const RealisticSoilLayer = ({ moisture, soilPh }: { moisture: number; soilPh: number }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  const soilTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Base soil color - affected by moisture
+    const moistureFactor = moisture / 100;
+    const baseR = Math.floor((0.4 - moistureFactor * 0.2) * 255);
+    const baseG = Math.floor((0.26 - moistureFactor * 0.15) * 255);
+    const baseB = Math.floor((0.13 - moistureFactor * 0.1) * 255);
+    
+    ctx.fillStyle = `rgb(${baseR}, ${baseG}, ${baseB})`;
+    ctx.fillRect(0, 0, 512, 512);
+    
+    // Add texture detail
+    for (let i = 0; i < 2000; i++) {
+      const x = Math.random() * 512;
+      const y = Math.random() * 512;
+      const size = Math.random() * 3 + 1;
+      const darkness = Math.random() * 40;
+      ctx.fillStyle = `rgba(${baseR - darkness}, ${baseG - darkness}, ${baseB - darkness}, ${Math.random() * 0.5 + 0.3})`;
+      ctx.fillRect(x, y, size, size);
+    }
+    
+    return new THREE.CanvasTexture(canvas);
+  }, [moisture, soilPh]);
+
+  soilTexture.wrapS = soilTexture.wrapT = THREE.RepeatWrapping;
+  soilTexture.repeat.set(4, 4);
+
+  return (
+    <mesh ref={meshRef} position={[0, -0.5, 0]} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[10, 10, 32, 32]} />
+      <meshStandardMaterial 
+        map={soilTexture}
+        roughness={0.95}
+        metalness={0}
+        displacementScale={0.1}
+      />
+    </mesh>
+  );
+};
+
+const RealisticPlant = ({ 
+  position, 
+  health,
+  temperature,
+  lightIntensity,
+  moisture 
+}: { 
+  position: [number, number, number];
+  health: number;
+  temperature: number;
+  lightIntensity: number;
+  moisture: number;
+}) => {
+  const groupRef = useRef<THREE.Group>(null);
+
+  // Calculate wilting based on conditions
+  const wiltFactor = useMemo(() => {
+    let wilt = 0;
+    if (moisture < 25) wilt += (25 - moisture) / 25 * 0.5;
+    if (temperature > 38) wilt += (temperature - 38) / 12 * 0.3;
+    if (health < 40) wilt += (40 - health) / 40 * 0.2;
+    return Math.min(1, wilt);
+  }, [moisture, temperature, health]);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      // Natural sway reduced when wilting
+      const swayAmount = 0.03 * (1 - wiltFactor * 0.7);
+      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5 + position[0]) * swayAmount;
+      groupRef.current.position.y = Math.sin(state.clock.elapsedTime + position[0]) * 0.02 * (1 - wiltFactor);
+      
+      // Wilting effect - droop
+      groupRef.current.rotation.x = wiltFactor * 0.3;
+    }
+  });
+
+  const leafColor = useMemo(() => {
+    const healthFactor = health / 100;
+    // Add browning for drought stress
+    const brownFactor = moisture < 25 ? (25 - moisture) / 25 * 0.3 : 0;
+    return new THREE.Color(
+      0.1 + (1 - healthFactor) * 0.4 + brownFactor * 0.3,
+      0.3 + healthFactor * 0.5 - brownFactor * 0.2,
+      0.05
+    );
+  }, [health, moisture]);
+
+  const scale = useMemo(() => {
+    const baseScale = (0.6 + (health / 100) * 0.4) * (0.8 + (lightIntensity / 100) * 0.2);
+    return baseScale * (1 - wiltFactor * 0.3);
+  }, [health, lightIntensity, wiltFactor]);
+
+  return (
+    <group ref={groupRef} position={position}>
+      {/* Main stem */}
+      <mesh position={[0, 0.25, 0]} castShadow>
+        <cylinderGeometry args={[0.03, 0.05, 0.5, 8]} />
+        <meshStandardMaterial color="#3d5a2c" roughness={0.8} />
+      </mesh>
+      
+      {/* Main leaf cluster */}
+      {[0, 1, 2, 3, 4].map((i) => {
+        const angle = (i / 5) * Math.PI * 2;
+        const height = 0.4 + i * 0.1;
+        const droopAngle = wiltFactor * 0.5;
+        return (
+          <mesh
+            key={i}
+            position={[
+              Math.cos(angle) * 0.15,
+              height * (1 - wiltFactor * 0.2),
+              Math.sin(angle) * 0.15
+            ]}
+            rotation={[angle + droopAngle, angle, angle]}
+            castShadow
+          >
+            <coneGeometry args={[0.12 * scale, 0.25 * scale, 6]} />
+            <meshStandardMaterial 
+              color={leafColor} 
+              roughness={0.6}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        );
+      })}
+      
+      {/* Top leaves */}
+      <mesh position={[0, 0.6 * (1 - wiltFactor * 0.3), 0]} rotation={[wiltFactor * 0.2, 0, 0]} castShadow>
+        <sphereGeometry args={[0.15 * scale, 8, 6]} />
+        <meshStandardMaterial color={leafColor} roughness={0.5} />
+      </mesh>
+    </group>
+  );
+};
+
+const WaterDroplets = ({ todayRainfall, totalRainfall }: { todayRainfall: number; totalRainfall: number }) => {
+  const pointsRef = useRef<THREE.Points>(null);
+  
+  // Only show rain droplets when there's actual rainfall
+  // Today's rainfall has more impact on droplet count, total rainfall adds some background effect
+  const particleCount = useMemo(() => {
+    if (todayRainfall <= 0 && totalRainfall <= 0) return 0;
+    // Scale: today's rainfall (0-50mm) maps to 0-200 particles
+    // Total rainfall adds a subtle background (0-200mm) maps to 0-50 particles
+    const todayDroplets = Math.floor((todayRainfall / 50) * 200);
+    const totalDroplets = Math.floor((totalRainfall / 200) * 50);
+    return Math.min(300, todayDroplets + totalDroplets);
+  }, [todayRainfall, totalRainfall]);
+
+  const [positions, velocities] = useMemo(() => {
+    if (particleCount === 0) return [new Float32Array(0), new Float32Array(0)];
+    const pos = new Float32Array(particleCount * 3);
+    const vel = new Float32Array(particleCount * 3);
+    
+    for (let i = 0; i < particleCount; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 8;
+      pos[i * 3 + 1] = Math.random() * 3 - 0.3;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 8;
+      
+      // Droplet speed based on rainfall intensity
+      const speedFactor = 1 + (todayRainfall / 50) * 0.5;
+      vel[i * 3] = (Math.random() - 0.5) * 0.01;
+      vel[i * 3 + 1] = (-Math.random() * 0.02 - 0.01) * speedFactor;
+      vel[i * 3 + 2] = (Math.random() - 0.5) * 0.01;
+    }
+    
+    return [pos, vel];
+  }, [particleCount, todayRainfall]);
+
+  useFrame(() => {
+    if (pointsRef.current && particleCount > 0) {
+      const pos = pointsRef.current.geometry.attributes.position.array as Float32Array;
+      
+      for (let i = 0; i < pos.length / 3; i++) {
+        pos[i * 3] += velocities[i * 3];
+        pos[i * 3 + 1] += velocities[i * 3 + 1];
+        pos[i * 3 + 2] += velocities[i * 3 + 2];
+        
+        if (pos[i * 3 + 1] < -0.3) {
+          pos[i * 3 + 1] = 3;
+          pos[i * 3] = (Math.random() - 0.5) * 8;
+          pos[i * 3 + 2] = (Math.random() - 0.5) * 8;
+        }
+      }
+      
+      pointsRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+  });
+
+  if (particleCount === 0) return null;
+
+  return (
+    <points ref={pointsRef} key={`rain-${particleCount}`}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={positions.length / 3}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial 
+        size={0.04} 
+        color="#4dd0e1" 
+        transparent 
+        opacity={0.7}
+        sizeAttenuation
+      />
+    </points>
+  );
+};
+
+const IrrigationSystem = ({ active }: { active: boolean }) => {
+  const sprayRef = useRef<THREE.Mesh>(null);
+  const [particles] = useState(() => {
+    const count = 50;
+    const pos = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      pos[i * 3] = Math.cos(angle) * 0.3;
+      pos[i * 3 + 1] = Math.random() * 0.5;
+      pos[i * 3 + 2] = Math.sin(angle) * 0.3;
+    }
+    return pos;
+  });
+
+  useFrame((state) => {
+    if (sprayRef.current && active) {
+      sprayRef.current.rotation.y = state.clock.elapsedTime * 2;
+    }
+  });
+
+  return (
+    <group position={[-3, 1.5, -3]}>
+      <mesh position={[0, -0.5, 0]}>
+        <cylinderGeometry args={[0.05, 0.05, 1, 8]} />
+        <meshStandardMaterial color="#666" metalness={0.8} roughness={0.2} />
+      </mesh>
+      <mesh ref={sprayRef} position={[0, 0.2, 0]}>
+        <cylinderGeometry args={[0.15, 0.1, 0.3, 8]} />
+        <meshStandardMaterial color="#888" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {active && (
+        <points position={[0, 0.3, 0]}>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              count={particles.length / 3}
+              array={particles}
+              itemSize={3}
+            />
+          </bufferGeometry>
+          <pointsMaterial size={0.05} color="#4fc3f7" transparent opacity={0.6} />
+        </points>
+      )}
+    </group>
+  );
+};
+
 const SensorPole = ({ position, label, value }: { position: [number, number, number]; label: string; value: string }) => {
   return (
     <group position={position}>
-      {/* Pole */}
-      <mesh position={[0, 0.4, 0]}>
-        <cylinderGeometry args={[0.02, 0.02, 0.8, 8]} />
-        <meshStandardMaterial color="#444" metalness={0.5} roughness={0.5} />
+      <mesh position={[0, 0.5, 0]}>
+        <cylinderGeometry args={[0.03, 0.03, 1, 8]} />
+        <meshStandardMaterial color="#555" metalness={0.6} roughness={0.4} />
       </mesh>
-      
-      {/* Sensor box */}
-      <mesh position={[0, 0.9, 0]}>
-        <boxGeometry args={[0.12, 0.12, 0.04]} />
-        <meshStandardMaterial color="#2196f3" emissive="#2196f3" emissiveIntensity={0.2} />
+      <mesh position={[0, 1.1, 0]}>
+        <boxGeometry args={[0.15, 0.15, 0.05]} />
+        <meshStandardMaterial color="#1976d2" emissive="#1976d2" emissiveIntensity={0.3} />
       </mesh>
-      
-      {/* Value label */}
       <Text
-        position={[0, 1.15, 0]}
-        fontSize={0.1}
+        position={[0, 1.4, 0]}
+        fontSize={0.12}
+        color="#ffffff"
+        anchorX="center"
+      >
+        {label}
+      </Text>
+      <Text
+        position={[0, 1.25, 0]}
+        fontSize={0.15}
         color="#4caf50"
         anchorX="center"
       >
@@ -241,136 +645,147 @@ const SensorPole = ({ position, label, value }: { position: [number, number, num
   );
 };
 
-// Calculate growth factor based on environmental conditions
-const calculateGrowthFactor = (moisture: number, temperature: number, plantId: number): number => {
-  const baseGrowth = Math.min(1, Math.max(0.3, (moisture / 100) * (temperature / 22)));
-  const variation = 0.85 + Math.sin(plantId * 0.7) * 0.15;
-  return baseGrowth * variation;
-};
-
-const Scene = ({ moisture, temperature, selectedCrop = 'tomato' }: FieldProps) => {
+const Scene = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall }: FieldProps) => {
   const plantHealth = useMemo(() => {
     let health = 100;
     if (moisture < 30) health -= (30 - moisture);
     if (moisture > 70) health -= (moisture - 70) * 0.5;
     if (temperature < 20) health -= (20 - temperature) * 2;
     if (temperature > 35) health -= (temperature - 35) * 3;
+    if (soilPh < 6) health -= (6 - soilPh) * 10;
+    if (soilPh > 7.5) health -= (soilPh - 7.5) * 10;
+    if (lightIntensity < 50) health -= (50 - lightIntensity) * 0.3;
     return Math.max(0, Math.min(100, health));
-  }, [moisture, temperature]);
+  }, [moisture, temperature, soilPh, lightIntensity]);
 
-  // Generate a grid of plants - 5x5 layout like in screenshot
-  const plants = useMemo(() => {
-    const plantList = [];
-    const gridSize = 5;
-    const spacing = 1.4;
-    const startX = -((gridSize - 1) * spacing) / 2;
-    const startZ = -((gridSize - 1) * spacing) / 2;
-    
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        const plantId = row * gridSize + col;
-        const growth = calculateGrowthFactor(moisture, temperature, plantId);
-        
-        plantList.push({
-          position: [startX + col * spacing, 0, startZ + row * spacing] as [number, number, number],
-          plantId,
-          growth,
-        });
-      }
-    }
-    return plantList;
-  }, [moisture, temperature]);
+  const sunIntensity = useMemo(() => lightIntensity / 100, [lightIntensity]);
+  const isIrrigating = moisture < 40;
 
-  // Select plant component based on crop type
-  const PlantComponent = selectedCrop === 'chili' 
-    ? ChiliPlant 
-    : selectedCrop === 'brinjal' 
-      ? BrinjalPlant 
-      : TomatoPlant;
+  // Sky color based on conditions
+  const skyTurbidity = useMemo(() => {
+    if (temperature > 35) return 12; // Hazy hot day
+    if (humidity > 80) return 10; // Humid/overcast
+    if (todayRainfall > 5) return 14; // Rainy/overcast
+    return 8;
+  }, [temperature, humidity, todayRainfall]);
 
   return (
     <>
-      {/* Simple lighting */}
-      <ambientLight intensity={0.6} />
-      <directionalLight 
-        position={[10, 15, 10]} 
-        intensity={0.8}
-        castShadow
+      <Sky 
+        sunPosition={[100 * sunIntensity, 20 + 30 * sunIntensity, 100]} 
+        turbidity={skyTurbidity}
+        rayleigh={0.5}
       />
+      
+      {humidity > 70 && (
+        <>
+          <Cloud position={[-4, 3, -4]} speed={0.2} opacity={0.3} />
+          <Cloud position={[4, 3.5, -3]} speed={0.15} opacity={0.25} />
+        </>
+      )}
 
-      {/* Soil field */}
-      <SoilField />
-      
-      {/* Plants grid */}
-      {plants.map((plant, index) => (
-        <PlantComponent
-          key={index}
-          position={plant.position}
-          plantId={plant.plantId}
-          growth={plant.growth}
-        />
-      ))}
-      
-      {/* Field Health label floating above */}
-      <Text
-        position={[0, 2.5, 0]}
-        fontSize={0.3}
-        color="#2e7d32"
-        anchorX="center"
-        fontWeight="bold"
-      >
-        {`Field Health: ${Math.round(plantHealth)}%`}
-      </Text>
-      
-      {/* Sensor poles at corners */}
-      <SensorPole position={[-4.5, 0, -4.5]} label="Temp" value="T" />
-      <SensorPole position={[4.5, 0, -4.5]} label="Moisture" value="M" />
-      <SensorPole position={[-4.5, 0, 4.5]} label="pH" value="pH" />
-      <SensorPole position={[4.5, 0, 4.5]} label="Humidity" value="H" />
-      
-      <OrbitControls 
-        enablePan={false}
-        minDistance={6}
-        maxDistance={18}
-        minPolarAngle={Math.PI / 6}
-        maxPolarAngle={Math.PI / 2.5}
+      <ambientLight intensity={0.4 + sunIntensity * 0.3} />
+      <directionalLight 
+        position={[10, 10, 5]} 
+        intensity={sunIntensity * 1.2}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-far={50}
+        shadow-camera-left={-10}
+        shadow-camera-right={10}
+        shadow-camera-top={10}
+        shadow-camera-bottom={-10}
       />
+      <hemisphereLight intensity={0.3} groundColor="#8B7355" />
+
+      <RealisticSoilLayer moisture={moisture} soilPh={soilPh} />
+      
+      {/* Environmental effects */}
+      <CrackedSoilOverlay moisture={moisture} />
+      <DustParticles moisture={moisture} temperature={temperature} />
+      <HeatShimmer temperature={temperature} />
+      <FrostCrystals temperature={temperature} />
+      <SaltDeposits soilPh={soilPh} />
+      <AcidPatches soilPh={soilPh} />
+      <WaterPuddles moisture={moisture} />
+      <StatusIndicators 
+        moisture={moisture} 
+        temperature={temperature} 
+        soilPh={soilPh} 
+        lightIntensity={lightIntensity} 
+        humidity={humidity} 
+      />
+      
+      <WaterDroplets key={`${todayRainfall}-${totalRainfall}`} todayRainfall={todayRainfall} totalRainfall={totalRainfall} />
+      <IrrigationSystem active={isIrrigating} />
+
+      {/* Sensor poles */}
+      <SensorPole position={[4, 0, 4]} label="Moisture" value={`${moisture}%`} />
+      <SensorPole position={[4, 0, -4]} label="Temp" value={`${temperature}°C`} />
+      <SensorPole position={[-4, 0, 4]} label="pH" value={soilPh.toFixed(1)} />
+
+      {/* Plant field - 6x6 grid */}
+      {Array.from({ length: 6 }).map((_, x) =>
+        Array.from({ length: 6 }).map((_, z) => (
+          <RealisticPlant
+            key={`${x}-${z}`}
+            position={[(x - 2.5) * 1.3, 0, (z - 2.5) * 1.3]}
+            health={plantHealth + (Math.random() - 0.5) * 10}
+            temperature={temperature}
+            lightIntensity={lightIntensity}
+            moisture={moisture}
+          />
+        ))
+      )}
+
+      {/* Health indicator */}
+      <Text
+        position={[0, 3, 0]}
+        fontSize={0.4}
+        color={plantHealth > 70 ? '#4caf50' : plantHealth > 40 ? '#ff9800' : '#f44336'}
+        anchorX="center"
+        outlineWidth={0.02}
+        outlineColor="#000000"
+      >
+        Field Health: {plantHealth.toFixed(0)}%
+      </Text>
+
+      {isIrrigating && (
+        <Text
+          position={[0, 2.5, 0]}
+          fontSize={0.25}
+          color="#2196f3"
+          anchorX="center"
+        >
+          💧 Irrigation Active
+        </Text>
+      )}
+
+      <OrbitControls 
+        enablePan={true}
+        enableZoom={true}
+        enableRotate={true}
+        minDistance={6}
+        maxDistance={25}
+        maxPolarAngle={Math.PI / 2.2}
+      />
+      <Environment preset="sunset" />
+      
+      {/* Ground fog effect */}
+      <fog attach="fog" args={['#e8f5e9', 10, 40]} />
     </>
   );
 };
 
-interface VirtualField3DProps {
-  moisture?: number;
-  temperature?: number;
-  soilPh?: number;
-  lightIntensity?: number;
-  humidity?: number;
-  todayRainfall?: number;
-  totalRainfall?: number;
-  selectedCrop?: string;
-  currentWeek?: number;
-}
-
-const VirtualField3D = ({
-  moisture = 50,
-  temperature = 25,
-  soilPh = 6.5,
-  lightIntensity = 70,
-  humidity = 55,
-  todayRainfall = 0,
-  totalRainfall = 0,
-  selectedCrop = 'tomato',
-  currentWeek = 1,
-}: VirtualField3DProps) => {
+const VirtualField3D = ({ moisture, temperature, soilPh, lightIntensity, humidity, todayRainfall, totalRainfall }: FieldProps) => {
   return (
-    <div className="w-full h-[500px] rounded-lg overflow-hidden border border-border bg-muted/30">
+    <div className="w-full h-[600px] rounded-lg overflow-hidden border-2 border-primary/20 shadow-2xl bg-gradient-to-b from-sky-200 to-green-100">
       <Canvas
         shadows
-        camera={{ position: [8, 6, 8], fov: 50 }}
-        gl={{ antialias: true }}
-        style={{ background: 'linear-gradient(to bottom, #cfd8dc, #b0bec5)' }}
+        camera={{ position: [10, 8, 10], fov: 50 }}
+        gl={{ antialias: true, alpha: false }}
       >
-        <Scene
+        <Scene 
           moisture={moisture}
           temperature={temperature}
           soilPh={soilPh}
@@ -378,8 +793,6 @@ const VirtualField3D = ({
           humidity={humidity}
           todayRainfall={todayRainfall}
           totalRainfall={totalRainfall}
-          selectedCrop={selectedCrop}
-          currentWeek={currentWeek}
         />
       </Canvas>
     </div>
