@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -811,51 +812,71 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {activeGraph && (
-          <MetricGraph
-            title={
-              activeGraph === "moisture" ? "Soil Moisture" :
-              activeGraph === "temperature" ? "Temperature" :
-              activeGraph === "humidity" ? "Humidity" :
-              activeGraph === "soilPh" ? "Soil pH" :
-              activeGraph === "lightIntensity" ? "Light Intensity" :
-              activeGraph === "airPressure" ? "Air Pressure" :
-              activeGraph === "solarRadiation" ? "Solar Radiation" :
-              activeGraph === "windSpeed" ? "Wind Speed" :
-              activeGraph === "windDirection" ? "Wind Direction" :
-              activeGraph === "totalRainfall" ? "Total Rainfall" :
-              "Today's Rainfall"
-            }
-            data={getGraphData(activeGraph)}
-            unit={
-              activeGraph === "moisture" ? "%" :
-              activeGraph === "temperature" ? "°C" :
-              activeGraph === "humidity" ? "%" :
-              activeGraph === "soilPh" ? "pH" :
-              activeGraph === "lightIntensity" ? "%" :
-              activeGraph === "airPressure" ? "hPa" :
-              activeGraph === "solarRadiation" ? "W/m²" :
-              activeGraph === "windSpeed" ? "m/s" :
-              activeGraph === "windDirection" ? "°" :
-              activeGraph === "totalRainfall" ? "mm" :
-              "mm"
-            }
-            color={
-              activeGraph === "moisture" ? "#3b82f6" :
-              activeGraph === "temperature" ? "#ef4444" :
-              activeGraph === "humidity" ? "#06b6d4" :
-              activeGraph === "soilPh" ? "#8b5cf6" :
-              activeGraph === "lightIntensity" ? "#eab308" :
-              activeGraph === "airPressure" ? "#a855f7" :
-              activeGraph === "solarRadiation" ? "#f97316" :
-              activeGraph === "windSpeed" ? "#14b8a6" :
-              activeGraph === "windDirection" ? "#6366f1" :
-              activeGraph === "totalRainfall" ? "#2563eb" :
-              "#0891b2"
-            }
-            onClose={() => setActiveGraph(null)}
-          />
-        )}
+        <Dialog open={!!activeGraph} onOpenChange={(open) => { if (!open) setActiveGraph(null); }}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>
+                {activeGraph === "moisture" ? "Soil Moisture" :
+                activeGraph === "temperature" ? "Temperature" :
+                activeGraph === "humidity" ? "Humidity" :
+                activeGraph === "soilPh" ? "Soil pH" :
+                activeGraph === "lightIntensity" ? "Light Intensity" :
+                activeGraph === "airPressure" ? "Air Pressure" :
+                activeGraph === "solarRadiation" ? "Solar Radiation" :
+                activeGraph === "windSpeed" ? "Wind Speed" :
+                activeGraph === "windDirection" ? "Wind Direction" :
+                activeGraph === "totalRainfall" ? "Total Rainfall" :
+                "Today's Rainfall"} History
+              </DialogTitle>
+              <DialogDescription>Last 50 readings</DialogDescription>
+            </DialogHeader>
+            {activeGraph && (
+              <MetricGraph
+                title={
+                  activeGraph === "moisture" ? "Soil Moisture" :
+                  activeGraph === "temperature" ? "Temperature" :
+                  activeGraph === "humidity" ? "Humidity" :
+                  activeGraph === "soilPh" ? "Soil pH" :
+                  activeGraph === "lightIntensity" ? "Light Intensity" :
+                  activeGraph === "airPressure" ? "Air Pressure" :
+                  activeGraph === "solarRadiation" ? "Solar Radiation" :
+                  activeGraph === "windSpeed" ? "Wind Speed" :
+                  activeGraph === "windDirection" ? "Wind Direction" :
+                  activeGraph === "totalRainfall" ? "Total Rainfall" :
+                  "Today's Rainfall"
+                }
+                data={getGraphData(activeGraph)}
+                unit={
+                  activeGraph === "moisture" ? "%" :
+                  activeGraph === "temperature" ? "°C" :
+                  activeGraph === "humidity" ? "%" :
+                  activeGraph === "soilPh" ? "pH" :
+                  activeGraph === "lightIntensity" ? "%" :
+                  activeGraph === "airPressure" ? "hPa" :
+                  activeGraph === "solarRadiation" ? "W/m²" :
+                  activeGraph === "windSpeed" ? "m/s" :
+                  activeGraph === "windDirection" ? "°" :
+                  activeGraph === "totalRainfall" ? "mm" :
+                  "mm"
+                }
+                color={
+                  activeGraph === "moisture" ? "#3b82f6" :
+                  activeGraph === "temperature" ? "#ef4444" :
+                  activeGraph === "humidity" ? "#06b6d4" :
+                  activeGraph === "soilPh" ? "#8b5cf6" :
+                  activeGraph === "lightIntensity" ? "#eab308" :
+                  activeGraph === "airPressure" ? "#a855f7" :
+                  activeGraph === "solarRadiation" ? "#f97316" :
+                  activeGraph === "windSpeed" ? "#14b8a6" :
+                  activeGraph === "windDirection" ? "#6366f1" :
+                  activeGraph === "totalRainfall" ? "#2563eb" :
+                  "#0891b2"
+                }
+                onClose={() => setActiveGraph(null)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
 
         <Card className="border-2">
           <CardHeader>
