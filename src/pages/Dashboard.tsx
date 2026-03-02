@@ -235,17 +235,12 @@ const Dashboard = () => {
   };
 
   // Agricultural Dashboard Data
-  const yieldData = [
-    { month: "Jan", actual: 2.5, predicted: null },
-    { month: "Feb", actual: 2.8, predicted: null },
-    { month: "Mar", actual: 3.2, predicted: null },
-    { month: "Apr", actual: 3.5, predicted: null },
-    { month: "May", actual: 3.8, predicted: null },
-    { month: "Jun", actual: null, predicted: 4.2 },
-    { month: "Jul", actual: null, predicted: 4.5 },
-    { month: "Aug", actual: null, predicted: 4.8 },
-    { month: "Sep", actual: null, predicted: 5.0 },
-    { month: "Oct", actual: null, predicted: 5.2 },
+  const waterEfficiencyData = [
+    { scenario: "Optimal", manual: 0, digitalTwin: 5 },
+    { scenario: "Water Stress", manual: 10, digitalTwin: 15 },
+    { scenario: "Disease-Prone", manual: 15, digitalTwin: 25 },
+    { scenario: "Multi-Stress", manual: 20, digitalTwin: 20 },
+    { scenario: "Seasonal", manual: 10, digitalTwin: 10 },
   ];
 
   const growthData = [
@@ -958,31 +953,22 @@ const Dashboard = () => {
         <Card className="mb-8 animate-fade-in">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-primary" />
-              Yield Prediction Timeline
+              <Droplets className="w-5 h-5 text-primary" />
+              Water Use Efficiency: Manual vs Soil Digital Twin
             </CardTitle>
             <CardDescription>
-              Historical actual yields vs AI-predicted future yields
+              Comparison of water savings across different agricultural scenarios
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={yieldData}>
-                <defs>
-                  <linearGradient id="actualGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0.1}/>
-                  </linearGradient>
-                  <linearGradient id="predictedGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
-                  </linearGradient>
-                </defs>
+              <BarChart data={waterEfficiencyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--foreground))" />
+                <XAxis dataKey="scenario" stroke="hsl(var(--foreground))" />
                 <YAxis 
                   stroke="hsl(var(--foreground))" 
-                  label={{ value: 'Tons/Hectare', angle: -90, position: 'insideLeft' }}
+                  tickFormatter={(v) => `${v}%`}
+                  label={{ value: 'Water Savings (%)', angle: -90, position: 'insideLeft' }}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -990,26 +976,22 @@ const Dashboard = () => {
                     border: '1px solid hsl(var(--border))',
                     borderRadius: '8px',
                   }}
+                  formatter={(value: number, name: string) => [`${value}%`, name]}
                 />
                 <Legend />
-                <Area 
-                  type="monotone" 
-                  dataKey="actual" 
-                  stroke="hsl(var(--accent))" 
-                  strokeWidth={3}
-                  fill="url(#actualGradient)" 
-                  name="Actual Yield"
+                <Bar 
+                  dataKey="manual" 
+                  fill="hsl(210, 60%, 55%)" 
+                  name="Manual Scheduling" 
+                  radius={[4, 4, 0, 0]}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="predicted" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={3}
-                  strokeDasharray="5 5"
-                  fill="url(#predictedGradient)" 
-                  name="Predicted Yield"
+                <Bar 
+                  dataKey="digitalTwin" 
+                  fill="hsl(120, 50%, 55%)" 
+                  name="Digital Twin" 
+                  radius={[4, 4, 0, 0]}
                 />
-              </AreaChart>
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
