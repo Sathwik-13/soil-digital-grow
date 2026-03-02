@@ -234,14 +234,42 @@ const Dashboard = () => {
     return effects;
   };
 
-  // Agricultural Dashboard Data
-  const waterEfficiencyData = [
-    { scenario: "Optimal", manual: 0, digitalTwin: 5 },
-    { scenario: "Water Stress", manual: 10, digitalTwin: 15 },
-    { scenario: "Disease-Prone", manual: 15, digitalTwin: 25 },
-    { scenario: "Multi-Stress", manual: 20, digitalTwin: 20 },
-    { scenario: "Seasonal", manual: 10, digitalTwin: 10 },
-  ];
+  // Water efficiency data - dynamic based on current sensor values
+  const waterEfficiencyData = (() => {
+    // Manual scheduling uses fixed schedules, digital twin adapts to conditions
+    const moistureStress = moisture < 30 ? 1 : moisture > 70 ? 0.8 : 0.3;
+    const tempStress = temperature > 35 ? 1 : temperature < 20 ? 0.7 : 0.2;
+    const humidityFactor = humidity > 80 ? 0.9 : humidity < 40 ? 0.6 : 0.3;
+    const phStress = soilPh < 5.5 || soilPh > 7.5 ? 0.8 : 0.2;
+
+    return [
+      { 
+        scenario: "Optimal", 
+        manual: Math.round(2 + moistureStress * 3), 
+        digitalTwin: Math.round(5 + moistureStress * 5) 
+      },
+      { 
+        scenario: "Water Stress", 
+        manual: Math.round(8 + moistureStress * 8), 
+        digitalTwin: Math.round(12 + moistureStress * 12) 
+      },
+      { 
+        scenario: "Disease-Prone", 
+        manual: Math.round(10 + humidityFactor * 10 + tempStress * 5), 
+        digitalTwin: Math.round(18 + humidityFactor * 12 + tempStress * 8) 
+      },
+      { 
+        scenario: "Multi-Stress", 
+        manual: Math.round(12 + (moistureStress + tempStress + phStress) * 5), 
+        digitalTwin: Math.round(15 + (moistureStress + tempStress + phStress) * 7) 
+      },
+      { 
+        scenario: "Seasonal", 
+        manual: Math.round(6 + tempStress * 6), 
+        digitalTwin: Math.round(8 + tempStress * 8) 
+      },
+    ];
+  })();
 
   const growthData = [
     { week: "Week 1", projected: 85, optimal: 90 },
@@ -984,12 +1012,14 @@ const Dashboard = () => {
                   fill="hsl(210, 60%, 55%)" 
                   name="Manual Scheduling" 
                   radius={[4, 4, 0, 0]}
+                  label={{ position: 'top', formatter: (v: number) => `${v}%`, fill: 'hsl(210, 60%, 55%)', fontSize: 12, fontWeight: 'bold' }}
                 />
                 <Bar 
                   dataKey="digitalTwin" 
                   fill="hsl(120, 50%, 55%)" 
                   name="Digital Twin" 
                   radius={[4, 4, 0, 0]}
+                  label={{ position: 'top', formatter: (v: number) => `${v}%`, fill: 'hsl(120, 50%, 55%)', fontSize: 12, fontWeight: 'bold' }}
                 />
               </BarChart>
             </ResponsiveContainer>
