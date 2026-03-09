@@ -1199,18 +1199,21 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <YieldPrediction
-          moisture={moisture}
-          temperature={temperature}
-          soilPh={soilPh}
-          lightIntensity={lightIntensity}
-          nitrogen={nitrogen}
-          phosphorus={phosphorus}
-          potassium={potassium}
-          humidity={humidity}
-          selectedCrop={selectedCrop}
-          currentWeek={currentWeek}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <YieldPrediction
+            moisture={moisture}
+            temperature={temperature}
+            soilPh={soilPh}
+            lightIntensity={lightIntensity}
+            nitrogen={nitrogen}
+            phosphorus={phosphorus}
+            potassium={potassium}
+            humidity={humidity}
+            selectedCrop={selectedCrop}
+            currentWeek={currentWeek}
+          />
+          
+        </div>
       </div>
 
       <SoilAIChat />
