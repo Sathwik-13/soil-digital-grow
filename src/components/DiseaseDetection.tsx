@@ -267,77 +267,56 @@ const DiseaseDetection = ({
         </div>
 
         {/* Disease Risk Analysis */}
-        <div className="space-y-4">
-          <h4 className="font-semibold flex items-center gap-2">
+        <div className="space-y-2">
+          <h4 className="font-semibold flex items-center gap-2 text-sm">
             <AlertTriangle className="w-4 h-4 text-orange-500" />
             Disease Risk Analysis
           </h4>
           
-          {detectedDiseases.map((disease, idx) => (
-            <div 
-              key={idx} 
-              className={`p-4 rounded-lg border ${
-                disease.riskLevel === "critical" ? "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-800" :
-                disease.riskLevel === "high" ? "bg-orange-50 dark:bg-orange-950/20 border-orange-300 dark:border-orange-800" :
-                disease.riskLevel === "medium" ? "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300 dark:border-yellow-800" :
-                "bg-green-50 dark:bg-green-950/20 border-green-300 dark:border-green-800"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h5 className="font-medium">{disease.name}</h5>
-                <Badge variant={getRiskBadge(disease.riskLevel) as any}>
-                  {disease.riskLevel.toUpperCase()} RISK
-                </Badge>
-              </div>
-              
-              <div className="mb-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-muted-foreground">Risk Score:</span>
-                  <span className="text-sm font-medium">{Math.round(disease.riskScore)}%</span>
+          <div className="grid md:grid-cols-2 gap-2">
+            {detectedDiseases.map((disease, idx) => (
+              <div 
+                key={idx} 
+                className={`p-2.5 rounded-lg border text-xs ${
+                  disease.riskLevel === "critical" ? "bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-800" :
+                  disease.riskLevel === "high" ? "bg-orange-50 dark:bg-orange-950/20 border-orange-300 dark:border-orange-800" :
+                  disease.riskLevel === "medium" ? "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300 dark:border-yellow-800" :
+                  "bg-green-50 dark:bg-green-950/20 border-green-300 dark:border-green-800"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <h5 className="font-medium text-xs leading-tight">{disease.name}</h5>
+                  <Badge variant={getRiskBadge(disease.riskLevel) as any} className="text-[10px] px-1.5 py-0">
+                    {disease.riskLevel.toUpperCase()}
+                  </Badge>
                 </div>
-                <Progress value={disease.riskScore} className={`h-2 ${getRiskColor(disease.riskLevel)}`} />
-              </div>
+                
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Progress value={disease.riskScore} className={`h-1.5 flex-1 ${getRiskColor(disease.riskLevel)}`} />
+                  <span className="text-[10px] font-medium w-8 text-right">{Math.round(disease.riskScore)}%</span>
+                </div>
 
-              {disease.triggers.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Active Triggers:</p>
-                  <div className="flex flex-wrap gap-1">
+                {disease.triggers.length > 0 && (
+                  <div className="flex flex-wrap gap-0.5 mb-1.5">
                     {disease.triggers.map((trigger, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">
-                        <XCircle className="w-3 h-3 mr-1 text-red-500" />
+                      <Badge key={i} variant="outline" className="text-[10px] px-1 py-0">
                         {trigger}
                       </Badge>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="grid md:grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Symptoms to Watch:</p>
-                  <ul className="space-y-1">
-                    {disease.symptoms.slice(0, 2).map((symptom, i) => (
-                      <li key={i} className="flex items-start gap-1 text-xs">
-                        <span className="text-orange-500 mt-0.5">•</span>
-                        {symptom}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Prevention:</p>
-                  <ul className="space-y-1">
-                    {disease.prevention.slice(0, 2).map((action, i) => (
-                      <li key={i} className="flex items-start gap-1 text-xs">
-                        <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
-                        {action}
-                      </li>
-                    ))}
-                  </ul>
+                <div className="space-y-0.5">
+                  {disease.symptoms.slice(0, 1).map((s, i) => (
+                    <p key={i} className="text-[10px] text-muted-foreground">⚠ {s}</p>
+                  ))}
+                  {disease.prevention.slice(0, 1).map((p, i) => (
+                    <p key={i} className="text-[10px] text-green-600 dark:text-green-400">✓ {p}</p>
+                  ))}
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </CardContent>
     </Card>
