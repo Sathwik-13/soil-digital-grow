@@ -325,15 +325,15 @@ const Dashboard = () => {
         </div>
 
         {/* 3D Field + Controls Side by Side */}
-        <Card className="border-2 mb-6">
-          <CardHeader className="pb-2">
+        <Card className="border-2 border-primary/20 mb-6 overflow-hidden">
+          <CardHeader className="pb-2 bg-gradient-to-r from-primary/5 to-accent/5">
             <CardTitle>🌾 3D Virtual Field Visualization</CardTitle>
             <CardDescription>Adjust parameters on the right and observe real-time changes in the 3D field</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex flex-col lg:flex-row gap-4">
+          <CardContent className="p-3">
+            <div className="flex flex-col lg:flex-row gap-3">
               {/* 3D Field */}
-              <div className="flex-1 min-h-[450px]">
+              <div className="flex-1 min-h-[500px] rounded-lg overflow-hidden border border-border">
                 <VirtualField3D
                   moisture={moisture}
                   temperature={temperature}
@@ -348,90 +348,118 @@ const Dashboard = () => {
                 />
               </div>
 
-              {/* Compact Controls Panel */}
-              <div className="lg:w-72 xl:w-80 space-y-3 bg-muted/30 rounded-lg p-3 max-h-[500px] overflow-y-auto">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-primary" /> Sensor Controls
-                </h3>
-
-                {/* Moisture */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium flex items-center gap-1"><Droplets className="w-3 h-3 text-blue-500" /> Moisture</span>
-                    <span className="text-xs font-bold text-primary">{moisture}%</span>
-                  </div>
-                  <Slider value={[moisture]} onValueChange={(val) => setMoisture(val[0])} min={0} max={100} step={1} />
+              {/* Sensor Controls Panel */}
+              <div className="lg:w-80 xl:w-96 flex flex-col gap-2 max-h-[540px] overflow-y-auto pr-1">
+                <div className="flex items-center justify-between px-2 py-1.5 rounded-md bg-primary/10">
+                  <h3 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5" /> Sensor Controls
+                  </h3>
+                  <Badge variant="outline" className="text-[10px] h-5 border-primary/30 text-primary">
+                    Live
+                  </Badge>
                 </div>
 
-                {/* Temperature */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium flex items-center gap-1"><Thermometer className="w-3 h-3 text-red-500" /> Temperature</span>
-                    <span className="text-xs font-bold text-primary">{temperature}°C</span>
+                {/* Sensor Cards */}
+                {[
+                  {
+                    key: "moisture", label: "Soil Moisture", icon: Droplets,
+                    value: moisture, display: `${moisture}%`, color: "hsl(210, 80%, 55%)",
+                    min: 0, max: 100, step: 1,
+                    onChange: (v: number) => setMoisture(v),
+                    status: moisture < 30 ? "Low" : moisture > 70 ? "High" : "Optimal",
+                    statusColor: moisture < 30 || moisture > 70 ? "destructive" as const : "default" as const,
+                  },
+                  {
+                    key: "temperature", label: "Temperature", icon: Thermometer,
+                    value: temperature, display: `${temperature}°C`, color: "hsl(0, 75%, 55%)",
+                    min: 15, max: 45, step: 0.1,
+                    onChange: (v: number) => { setTemperature(v); applyEnvironmentalEffects("temperature", v); },
+                    status: temperature < 20 ? "Cold" : temperature > 35 ? "Hot" : "Optimal",
+                    statusColor: (temperature < 20 || temperature > 35) ? "destructive" as const : "default" as const,
+                  },
+                  {
+                    key: "humidity", label: "Humidity", icon: Wind,
+                    value: humidity, display: `${humidity}%`, color: "hsl(185, 70%, 45%)",
+                    min: 0, max: 100, step: 1,
+                    onChange: (v: number) => { setHumidity(v); applyEnvironmentalEffects("humidity", v); },
+                    status: humidity < 40 ? "Dry" : humidity > 80 ? "Wet" : "Normal",
+                    statusColor: (humidity < 40 || humidity > 80) ? "destructive" as const : "default" as const,
+                  },
+                  {
+                    key: "soilPh", label: "Soil pH", icon: null,
+                    value: soilPh, display: soilPh.toFixed(1), color: "hsl(270, 60%, 55%)",
+                    min: 4, max: 9, step: 0.1,
+                    onChange: (v: number) => setSoilPh(v),
+                    status: soilPh < 6 ? "Acidic" : soilPh > 7.5 ? "Alkaline" : "Balanced",
+                    statusColor: (soilPh < 6 || soilPh > 7.5) ? "destructive" as const : "default" as const,
+                  },
+                  {
+                    key: "lightIntensity", label: "Light Intensity", icon: Sun,
+                    value: lightIntensity, display: `${lightIntensity}%`, color: "hsl(45, 90%, 50%)",
+                    min: 0, max: 100, step: 1,
+                    onChange: (v: number) => { setLightIntensity(v); applyEnvironmentalEffects("lightIntensity", v); },
+                    status: lightIntensity < 30 ? "Low" : lightIntensity > 85 ? "Intense" : "Good",
+                    statusColor: (lightIntensity < 30 || lightIntensity > 85) ? "destructive" as const : "default" as const,
+                  },
+                  {
+                    key: "solarRadiation", label: "Solar Radiation", icon: Zap,
+                    value: solarRadiation, display: `${solarRadiation} W/m²`, color: "hsl(25, 90%, 55%)",
+                    min: 0, max: 1000, step: 1,
+                    onChange: (v: number) => { setSolarRadiation(v); applyEnvironmentalEffects("solarRadiation", v); },
+                    status: solarRadiation < 100 ? "Low" : solarRadiation > 600 ? "High" : "Normal",
+                    statusColor: (solarRadiation < 100 || solarRadiation > 600) ? "destructive" as const : "default" as const,
+                  },
+                  {
+                    key: "rainfall", label: "Rainfall", icon: CloudRain,
+                    value: rainfall, display: `${rainfall} mm`, color: "hsl(210, 90%, 45%)",
+                    min: 0, max: 200, step: 0.5,
+                    onChange: (v: number) => { setRainfall(v); applyEnvironmentalEffects("rainfall", v); },
+                    status: rainfall < 5 ? "Dry" : rainfall > 50 ? "Heavy" : "Moderate",
+                    statusColor: (rainfall > 50) ? "destructive" as const : "default" as const,
+                  },
+                ].map((sensor) => (
+                  <div
+                    key={sensor.key}
+                    className="rounded-lg border border-border bg-card p-2.5 space-y-1.5 hover:shadow-md transition-all duration-200 hover:border-primary/30"
+                    style={{ borderLeftWidth: "3px", borderLeftColor: sensor.color }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        {sensor.icon ? <sensor.icon className="w-3.5 h-3.5" style={{ color: sensor.color }} /> : <span className="text-[10px] font-bold rounded px-1 py-0.5" style={{ color: sensor.color, backgroundColor: `${sensor.color}20` }}>pH</span>}
+                        {sensor.label}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={sensor.statusColor} className="text-[9px] h-4 px-1.5">
+                          {sensor.status}
+                        </Badge>
+                        <span className="text-sm font-bold text-foreground tabular-nums">{sensor.display}</span>
+                      </div>
+                    </div>
+                    <Slider
+                      value={[sensor.value]}
+                      onValueChange={(val) => sensor.onChange(val[0])}
+                      min={sensor.min}
+                      max={sensor.max}
+                      step={sensor.step}
+                    />
                   </div>
-                  <Slider value={[temperature]} onValueChange={(val) => { setTemperature(val[0]); applyEnvironmentalEffects("temperature", val[0]); }} min={15} max={45} step={0.1} />
-                </div>
+                ))}
 
-                {/* Humidity */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium flex items-center gap-1"><Wind className="w-3 h-3 text-cyan-500" /> Humidity</span>
-                    <span className="text-xs font-bold text-primary">{humidity}%</span>
-                  </div>
-                  <Slider value={[humidity]} onValueChange={(val) => { setHumidity(val[0]); applyEnvironmentalEffects("humidity", val[0]); }} min={0} max={100} step={1} />
-                </div>
-
-                {/* Soil pH */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium flex items-center gap-1"><span className="text-purple-500 font-bold text-[10px]">pH</span> Soil pH</span>
-                    <span className="text-xs font-bold text-primary">{soilPh.toFixed(1)}</span>
-                  </div>
-                  <Slider value={[soilPh]} onValueChange={(val) => setSoilPh(val[0])} min={4} max={9} step={0.1} />
-                </div>
-
-                {/* Light Intensity */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium flex items-center gap-1"><Sun className="w-3 h-3 text-yellow-500" /> Light</span>
-                    <span className="text-xs font-bold text-primary">{lightIntensity}%</span>
-                  </div>
-                  <Slider value={[lightIntensity]} onValueChange={(val) => { setLightIntensity(val[0]); applyEnvironmentalEffects("lightIntensity", val[0]); }} min={0} max={100} step={1} />
-                </div>
-
-                {/* Solar Radiation */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium flex items-center gap-1"><Zap className="w-3 h-3 text-orange-500" /> Solar Rad.</span>
-                    <span className="text-xs font-bold text-primary">{solarRadiation} W/m²</span>
-                  </div>
-                  <Slider value={[solarRadiation]} onValueChange={(val) => { setSolarRadiation(val[0]); applyEnvironmentalEffects("solarRadiation", val[0]); }} min={0} max={1000} step={1} />
-                </div>
-
-                {/* Rainfall (merged) */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium flex items-center gap-1"><CloudRain className="w-3 h-3 text-blue-600" /> Rainfall</span>
-                    <span className="text-xs font-bold text-primary">{rainfall} mm</span>
-                  </div>
-                  <Slider value={[rainfall]} onValueChange={(val) => { setRainfall(val[0]); applyEnvironmentalEffects("rainfall", val[0]); }} min={0} max={200} step={0.5} />
-                </div>
-
-                {/* Quick graph buttons */}
-                <div className="pt-2 border-t border-border">
-                  <p className="text-[10px] text-muted-foreground mb-1.5">View History Graphs</p>
+                {/* Quick Actions */}
+                <div className="rounded-lg border border-border bg-muted/50 p-2">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">📊 View History</p>
                   <div className="grid grid-cols-2 gap-1">
                     {Object.entries(graphMetaMap).map(([key, meta]) => (
-                      <Button key={key} onClick={() => setActiveGraph(key)} variant="outline" size="sm" className="text-[10px] h-7 px-2">
-                        <BarChart3 className="w-3 h-3 mr-1" />{meta.title}
+                      <Button key={key} onClick={() => setActiveGraph(key)} variant="ghost" size="sm" className="text-[10px] h-6 px-2 justify-start hover:bg-primary/10 hover:text-primary">
+                        <BarChart3 className="w-3 h-3 mr-1 shrink-0" />{meta.title}
                       </Button>
                     ))}
                   </div>
                 </div>
 
-                {/* Data tracking */}
-                <div className="text-center pt-2 border-t border-border">
-                  <p className="text-xs text-muted-foreground">{dataLog.length} data points logged</p>
+                <div className="flex items-center justify-center gap-2 py-1">
+                  <div className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                  <p className="text-[10px] text-muted-foreground font-medium">{dataLog.length} data points logged</p>
                 </div>
               </div>
             </div>
