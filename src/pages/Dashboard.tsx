@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Download, Droplets, Thermometer, Wind, Sun, CloudRain, Gauge, Zap, Navigation, BarChart3, Sprout, TrendingUp, Calendar, Leaf } from "lucide-react";
+import { Download, Droplets, Thermometer, Wind, Sun, CloudRain, Zap, BarChart3, Sprout, TrendingUp, Calendar, Leaf } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
@@ -34,12 +34,8 @@ interface SensorData {
   humidity: number;
   soilPh: number;
   lightIntensity: number;
-  airPressure: number;
   solarRadiation: number;
-  windSpeed: number;
-  windDirection: number;
-  totalRainfall: number;
-  todayRainfall: number;
+  rainfall: number;
 }
 
 const Dashboard = () => {
@@ -49,12 +45,8 @@ const Dashboard = () => {
   const [humidity, setHumidity] = useState(65);
   const [soilPh, setSoilPh] = useState(6.5);
   const [lightIntensity, setLightIntensity] = useState(70);
-  const [airPressure, setAirPressure] = useState(915);
   const [solarRadiation, setSolarRadiation] = useState(149);
-  const [windSpeed, setWindSpeed] = useState(1.1);
-  const [windDirection, setWindDirection] = useState(35);
-  const [totalRainfall, setTotalRainfall] = useState(23.4);
-  const [todayRainfall, setTodayRainfall] = useState(0);
+  const [rainfall, setRainfall] = useState(12);
   const [dataLog, setDataLog] = useState<SensorData[]>([]);
   const [nitrogen, setNitrogen] = useState(65);
   const [phosphorus, setPhosphorus] = useState(70);
@@ -72,71 +64,42 @@ const Dashboard = () => {
   const applyEnvironmentalEffects = (
     changedFactor: string,
     newValue: number,
-    currentValues: {
-      moisture: number;
-      temperature: number;
-      humidity: number;
-      lightIntensity: number;
-      solarRadiation: number;
-      windSpeed: number;
-      airPressure: number;
-      todayRainfall: number;
-    }
   ) => {
     const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
 
     switch (changedFactor) {
-      case "solarRadiation":
-        // Solar radiation increases temperature, light, and decreases humidity/moisture
-        const solarEffect = (newValue - 100) / 100; // Normalize around 100 W/m²
+      case "solarRadiation": {
+        const solarEffect = (newValue - 100) / 100;
         setTemperature(prev => clamp(prev + solarEffect * 2, 15, 45));
         setLightIntensity(prev => clamp(prev + solarEffect * 5, 0, 100));
         setHumidity(prev => clamp(prev - solarEffect * 3, 0, 100));
         setMoisture(prev => clamp(prev - solarEffect * 1.5, 0, 100));
         break;
-
-      case "temperature":
-        // Temperature affects humidity inversely and reduces moisture
-        const tempEffect = (newValue - 25) / 10; // Normalize around 25°C
+      }
+      case "temperature": {
+        const tempEffect = (newValue - 25) / 10;
         setHumidity(prev => clamp(prev - tempEffect * 4, 0, 100));
         setMoisture(prev => clamp(prev - tempEffect * 2, 0, 100));
-        setAirPressure(prev => clamp(prev - tempEffect * 2, 850, 1050));
         break;
-
-      case "todayRainfall":
-        // Rainfall increases moisture and humidity, slightly cools temperature
+      }
+      case "rainfall": {
         const rainEffect = newValue / 10;
         setMoisture(prev => clamp(prev + rainEffect * 8, 0, 100));
         setHumidity(prev => clamp(prev + rainEffect * 5, 0, 100));
         setTemperature(prev => clamp(prev - rainEffect * 0.5, 15, 45));
         break;
-
-      case "windSpeed":
-        // Wind increases evaporation, reduces moisture and humidity, cooling effect
-        const windEffect = (newValue - 2) / 2; // Normalize around 2 m/s
-        setMoisture(prev => clamp(prev - windEffect * 3, 0, 100));
-        setHumidity(prev => clamp(prev - windEffect * 4, 0, 100));
-        setTemperature(prev => clamp(prev - windEffect * 1.5, 15, 45));
-        break;
-
-      case "humidity":
-        // Humidity helps retain soil moisture
-        const humidityEffect = (newValue - 50) / 50; // Normalize around 50%
+      }
+      case "humidity": {
+        const humidityEffect = (newValue - 50) / 50;
         setMoisture(prev => clamp(prev + humidityEffect * 2, 0, 100));
         break;
-
-      case "airPressure":
-        // Air pressure slightly affects temperature
-        const pressureEffect = (newValue - 915) / 100; // Normalize around 915 hPa (Bangalore)
-        setTemperature(prev => clamp(prev + pressureEffect * 0.5, 15, 45));
-        break;
-
-      case "lightIntensity":
-        // Light intensity affects temperature and moisture (evaporation)
-        const lightEffect = (newValue - 50) / 50; // Normalize around 50%
+      }
+      case "lightIntensity": {
+        const lightEffect = (newValue - 50) / 50;
         setTemperature(prev => clamp(prev + lightEffect * 1.5, 15, 45));
         setMoisture(prev => clamp(prev - lightEffect * 1, 0, 100));
         break;
+      }
     }
   };
 
@@ -144,7 +107,7 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setTemperature(prev => {
-        const bangaloreTemp = 22 + Math.random() * 10; // 22-32°C typical for Bangalore
+        const bangaloreTemp = 22 + Math.random() * 10;
         return Number((prev * 0.9 + bangaloreTemp * 0.1).toFixed(1));
       });
     }, 5000);
@@ -160,15 +123,11 @@ const Dashboard = () => {
       humidity,
       soilPh,
       lightIntensity,
-      airPressure,
       solarRadiation,
-      windSpeed,
-      windDirection,
-      totalRainfall,
-      todayRainfall,
+      rainfall,
     };
     setDataLog(prev => [...prev.slice(-99), newEntry]);
-  }, [moisture, temperature, humidity, soilPh, lightIntensity, airPressure, solarRadiation, windSpeed, windDirection, totalRainfall, todayRainfall]);
+  }, [moisture, temperature, humidity, soilPh, lightIntensity, solarRadiation, rainfall]);
 
   const exportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(
@@ -179,12 +138,8 @@ const Dashboard = () => {
         "Humidity (%)": entry.humidity,
         "Soil pH": entry.soilPh,
         "Light Intensity (%)": entry.lightIntensity,
-        "Air Pressure (hPa)": entry.airPressure,
         "Solar Radiation (W/m²)": entry.solarRadiation,
-        "Wind Speed (m/s)": entry.windSpeed,
-        "Wind Direction (°)": entry.windDirection,
-        "Total Rainfall (mm)": entry.totalRainfall,
-        "Today Rainfall (mm)": entry.todayRainfall,
+        "Rainfall (mm)": entry.rainfall,
       }))
     );
     
@@ -207,12 +162,8 @@ const Dashboard = () => {
         metric === "humidity" ? entry.humidity :
         metric === "soilPh" ? entry.soilPh :
         metric === "lightIntensity" ? entry.lightIntensity :
-        metric === "airPressure" ? entry.airPressure :
         metric === "solarRadiation" ? entry.solarRadiation :
-        metric === "windSpeed" ? entry.windSpeed :
-        metric === "windDirection" ? entry.windDirection :
-        metric === "totalRainfall" ? entry.totalRainfall :
-        entry.todayRainfall,
+        entry.rainfall,
     }));
   };
 
@@ -234,40 +185,19 @@ const Dashboard = () => {
     return effects;
   };
 
-  // Water efficiency data - dynamic based on current sensor values
+  // Water efficiency data
   const waterEfficiencyData = (() => {
-    // Manual scheduling uses fixed schedules, digital twin adapts to conditions
     const moistureStress = moisture < 30 ? 1 : moisture > 70 ? 0.8 : 0.3;
     const tempStress = temperature > 35 ? 1 : temperature < 20 ? 0.7 : 0.2;
     const humidityFactor = humidity > 80 ? 0.9 : humidity < 40 ? 0.6 : 0.3;
     const phStress = soilPh < 5.5 || soilPh > 7.5 ? 0.8 : 0.2;
 
     return [
-      { 
-        scenario: "Optimal", 
-        manual: Math.round(2 + moistureStress * 3), 
-        digitalTwin: Math.round(5 + moistureStress * 5) 
-      },
-      { 
-        scenario: "Water Stress", 
-        manual: Math.round(8 + moistureStress * 8), 
-        digitalTwin: Math.round(12 + moistureStress * 12) 
-      },
-      { 
-        scenario: "Disease-Prone", 
-        manual: Math.round(10 + humidityFactor * 10 + tempStress * 5), 
-        digitalTwin: Math.round(18 + humidityFactor * 12 + tempStress * 8) 
-      },
-      { 
-        scenario: "Multi-Stress", 
-        manual: Math.round(12 + (moistureStress + tempStress + phStress) * 5), 
-        digitalTwin: Math.round(15 + (moistureStress + tempStress + phStress) * 7) 
-      },
-      { 
-        scenario: "Seasonal", 
-        manual: Math.round(6 + tempStress * 6), 
-        digitalTwin: Math.round(8 + tempStress * 8) 
-      },
+      { scenario: "Optimal", manual: Math.round(2 + moistureStress * 3), digitalTwin: Math.round(5 + moistureStress * 5) },
+      { scenario: "Water Stress", manual: Math.round(8 + moistureStress * 8), digitalTwin: Math.round(12 + moistureStress * 12) },
+      { scenario: "Disease-Prone", manual: Math.round(10 + humidityFactor * 10 + tempStress * 5), digitalTwin: Math.round(18 + humidityFactor * 12 + tempStress * 8) },
+      { scenario: "Multi-Stress", manual: Math.round(12 + (moistureStress + tempStress + phStress) * 5), digitalTwin: Math.round(15 + (moistureStress + tempStress + phStress) * 7) },
+      { scenario: "Seasonal", manual: Math.round(6 + tempStress * 6), digitalTwin: Math.round(8 + tempStress * 8) },
     ];
   })();
 
@@ -311,39 +241,21 @@ const Dashboard = () => {
   ];
 
   const stats = [
-    {
-      title: "Current Yield",
-      value: "3.8",
-      unit: "tons/hectare",
-      change: "+12%",
-      icon: Sprout,
-      trend: "up",
-    },
-    {
-      title: "Active Crops",
-      value: "3",
-      unit: "varieties",
-      change: "Stable",
-      icon: Leaf,
-      trend: "stable",
-    },
-    {
-      title: "Forecast Accuracy",
-      value: "94%",
-      unit: "precision",
-      change: "+3%",
-      icon: TrendingUp,
-      trend: "up",
-    },
-    {
-      title: "Next Harvest",
-      value: "45",
-      unit: "days",
-      change: "On track",
-      icon: Calendar,
-      trend: "stable",
-    },
+    { title: "Current Yield", value: "3.8", unit: "tons/hectare", change: "+12%", icon: Sprout, trend: "up" },
+    { title: "Active Crops", value: "3", unit: "varieties", change: "Stable", icon: Leaf, trend: "stable" },
+    { title: "Forecast Accuracy", value: "94%", unit: "precision", change: "+3%", icon: TrendingUp, trend: "up" },
+    { title: "Next Harvest", value: "45", unit: "days", change: "On track", icon: Calendar, trend: "stable" },
   ];
+
+  const graphMetaMap: Record<string, { title: string; unit: string; color: string }> = {
+    moisture: { title: "Soil Moisture", unit: "%", color: "#3b82f6" },
+    temperature: { title: "Temperature", unit: "°C", color: "#ef4444" },
+    humidity: { title: "Humidity", unit: "%", color: "#06b6d4" },
+    soilPh: { title: "Soil pH", unit: "pH", color: "#8b5cf6" },
+    lightIntensity: { title: "Light Intensity", unit: "%", color: "#eab308" },
+    solarRadiation: { title: "Solar Radiation", unit: "W/m²", color: "#f97316" },
+    rainfall: { title: "Rainfall", unit: "mm", color: "#2563eb" },
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -388,9 +300,7 @@ const Dashboard = () => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">{stat.title}</p>
-                  <p className="text-3xl font-bold text-foreground">
-                    {stat.value}
-                  </p>
+                  <p className="text-3xl font-bold text-foreground">{stat.value}</p>
                   <p className="text-xs text-muted-foreground">{stat.unit}</p>
                 </div>
               </CardContent>
@@ -414,534 +324,138 @@ const Dashboard = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Droplets className="w-5 h-5 text-blue-500" />
-                Soil Moisture
-              </CardTitle>
-              <CardDescription>Adjust moisture level</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-primary">{moisture}%</div>
-              <Slider
-                value={[moisture]}
-                onValueChange={(val) => {
-                  setMoisture(val[0]);
-                  // Moisture changes don't trigger other effects directly
-                }}
-                min={0}
-                max={100}
-                step={1}
-              />
-              <Button
-                onClick={() => setActiveGraph("moisture")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+        {/* 3D Field + Controls Side by Side */}
+        <Card className="border-2 mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle>🌾 3D Virtual Field Visualization</CardTitle>
+            <CardDescription>Adjust parameters on the right and observe real-time changes in the 3D field</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* 3D Field */}
+              <div className="flex-1 min-h-[450px]">
+                <VirtualField3D
+                  moisture={moisture}
+                  temperature={temperature}
+                  soilPh={soilPh}
+                  lightIntensity={lightIntensity}
+                  humidity={humidity}
+                  todayRainfall={rainfall}
+                  totalRainfall={rainfall}
+                  selectedCrop={selectedCrop}
+                  currentWeek={currentWeek}
+                  ripenessDay={ripenessDay}
+                />
+              </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Thermometer className="w-5 h-5 text-red-500" />
-                Temperature
-              </CardTitle>
-              <CardDescription>Bangalore climate-based</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-primary">{temperature}°C</div>
-              <Slider
-                value={[temperature]}
-                onValueChange={(val) => {
-                  setTemperature(val[0]);
-                  applyEnvironmentalEffects("temperature", val[0], {
-                    moisture,
-                    temperature: val[0],
-                    humidity,
-                    lightIntensity,
-                    solarRadiation,
-                    windSpeed,
-                    airPressure,
-                    todayRainfall,
-                  });
-                }}
-                min={15}
-                max={45}
-                step={0.1}
-              />
-              <Button
-                onClick={() => setActiveGraph("temperature")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+              {/* Compact Controls Panel */}
+              <div className="lg:w-72 xl:w-80 space-y-3 bg-muted/30 rounded-lg p-3 max-h-[500px] overflow-y-auto">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-primary" /> Sensor Controls
+                </h3>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wind className="w-5 h-5 text-cyan-500" />
-                Humidity
-              </CardTitle>
-              <CardDescription>Relative humidity</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-primary">{humidity}%</div>
-              <Slider
-                value={[humidity]}
-                onValueChange={(val) => {
-                  setHumidity(val[0]);
-                  applyEnvironmentalEffects("humidity", val[0], {
-                    moisture,
-                    temperature,
-                    humidity: val[0],
-                    lightIntensity,
-                    solarRadiation,
-                    windSpeed,
-                    airPressure,
-                    todayRainfall,
-                  });
-                }}
-                min={0}
-                max={100}
-                step={1}
-              />
-              <Button
-                onClick={() => setActiveGraph("humidity")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Moisture */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1"><Droplets className="w-3 h-3 text-blue-500" /> Moisture</span>
+                    <span className="text-xs font-bold text-primary">{moisture}%</span>
+                  </div>
+                  <Slider value={[moisture]} onValueChange={(val) => setMoisture(val[0])} min={0} max={100} step={1} />
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="text-purple-500">pH</span>
-                Soil pH Level
-              </CardTitle>
-              <CardDescription>Acidity/Alkalinity</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-primary">{soilPh.toFixed(1)}</div>
-              <Slider
-                value={[soilPh]}
-                onValueChange={(val) => setSoilPh(val[0])}
-                min={4}
-                max={9}
-                step={0.1}
-              />
-              <Button
-                onClick={() => setActiveGraph("soilPh")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Temperature */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1"><Thermometer className="w-3 h-3 text-red-500" /> Temperature</span>
+                    <span className="text-xs font-bold text-primary">{temperature}°C</span>
+                  </div>
+                  <Slider value={[temperature]} onValueChange={(val) => { setTemperature(val[0]); applyEnvironmentalEffects("temperature", val[0]); }} min={15} max={45} step={0.1} />
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sun className="w-5 h-5 text-yellow-500" />
-                Light Intensity
-              </CardTitle>
-              <CardDescription>Sunlight exposure</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-primary">{lightIntensity}%</div>
-              <Slider
-                value={[lightIntensity]}
-                onValueChange={(val) => {
-                  setLightIntensity(val[0]);
-                  applyEnvironmentalEffects("lightIntensity", val[0], {
-                    moisture,
-                    temperature,
-                    humidity,
-                    lightIntensity: val[0],
-                    solarRadiation,
-                    windSpeed,
-                    airPressure,
-                    todayRainfall,
-                  });
-                }}
-                min={0}
-                max={100}
-                step={1}
-              />
-              <Button
-                onClick={() => setActiveGraph("lightIntensity")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Humidity */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1"><Wind className="w-3 h-3 text-cyan-500" /> Humidity</span>
+                    <span className="text-xs font-bold text-primary">{humidity}%</span>
+                  </div>
+                  <Slider value={[humidity]} onValueChange={(val) => { setHumidity(val[0]); applyEnvironmentalEffects("humidity", val[0]); }} min={0} max={100} step={1} />
+                </div>
 
-          <Card className="bg-primary/5 border-primary">
-            <CardHeader>
-              <CardTitle>Data Tracking</CardTitle>
-              <CardDescription>Logged sensor readings</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-primary">{dataLog.length}</div>
-              <p className="text-sm text-muted-foreground mt-2">Total data points collected</p>
-            </CardContent>
-          </Card>
-        </div>
+                {/* Soil pH */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1"><span className="text-purple-500 font-bold text-[10px]">pH</span> Soil pH</span>
+                    <span className="text-xs font-bold text-primary">{soilPh.toFixed(1)}</span>
+                  </div>
+                  <Slider value={[soilPh]} onValueChange={(val) => setSoilPh(val[0])} min={4} max={9} step={0.1} />
+                </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gauge className="w-5 h-5 text-purple-500" />
-                Air Pressure
-              </CardTitle>
-              <CardDescription>Atmospheric pressure</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-primary">{airPressure} hPa</div>
-              <Slider
-                value={[airPressure]}
-                onValueChange={(val) => {
-                  setAirPressure(val[0]);
-                  applyEnvironmentalEffects("airPressure", val[0], {
-                    moisture,
-                    temperature,
-                    humidity,
-                    lightIntensity,
-                    solarRadiation,
-                    windSpeed,
-                    airPressure: val[0],
-                    todayRainfall,
-                  });
-                }}
-                min={850}
-                max={1050}
-                step={1}
-              />
-              <Button
-                onClick={() => setActiveGraph("airPressure")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Light Intensity */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1"><Sun className="w-3 h-3 text-yellow-500" /> Light</span>
+                    <span className="text-xs font-bold text-primary">{lightIntensity}%</span>
+                  </div>
+                  <Slider value={[lightIntensity]} onValueChange={(val) => { setLightIntensity(val[0]); applyEnvironmentalEffects("lightIntensity", val[0]); }} min={0} max={100} step={1} />
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-orange-500" />
-                Solar Radiation (TSR)
-              </CardTitle>
-              <CardDescription>Total solar radiation</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-primary">{solarRadiation} W/m²</div>
-              <Slider
-                value={[solarRadiation]}
-                onValueChange={(val) => {
-                  setSolarRadiation(val[0]);
-                  applyEnvironmentalEffects("solarRadiation", val[0], {
-                    moisture,
-                    temperature,
-                    humidity,
-                    lightIntensity,
-                    solarRadiation: val[0],
-                    windSpeed,
-                    airPressure,
-                    todayRainfall,
-                  });
-                }}
-                min={0}
-                max={1000}
-                step={1}
-              />
-              <Button
-                onClick={() => setActiveGraph("solarRadiation")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Solar Radiation */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1"><Zap className="w-3 h-3 text-orange-500" /> Solar Rad.</span>
+                    <span className="text-xs font-bold text-primary">{solarRadiation} W/m²</span>
+                  </div>
+                  <Slider value={[solarRadiation]} onValueChange={(val) => { setSolarRadiation(val[0]); applyEnvironmentalEffects("solarRadiation", val[0]); }} min={0} max={1000} step={1} />
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Wind className="w-5 h-5 text-teal-500" />
-                Wind Speed
-              </CardTitle>
-              <CardDescription>Current wind speed</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-primary">{windSpeed} m/s</div>
-              <Slider
-                value={[windSpeed]}
-                onValueChange={(val) => {
-                  setWindSpeed(val[0]);
-                  applyEnvironmentalEffects("windSpeed", val[0], {
-                    moisture,
-                    temperature,
-                    humidity,
-                    lightIntensity,
-                    solarRadiation,
-                    windSpeed: val[0],
-                    airPressure,
-                    todayRainfall,
-                  });
-                }}
-                min={0}
-                max={30}
-                step={0.1}
-              />
-              <Button
-                onClick={() => setActiveGraph("windSpeed")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Rainfall (merged) */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium flex items-center gap-1"><CloudRain className="w-3 h-3 text-blue-600" /> Rainfall</span>
+                    <span className="text-xs font-bold text-primary">{rainfall} mm</span>
+                  </div>
+                  <Slider value={[rainfall]} onValueChange={(val) => { setRainfall(val[0]); applyEnvironmentalEffects("rainfall", val[0]); }} min={0} max={200} step={0.5} />
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Navigation className="w-5 h-5 text-indigo-500" />
-                Wind Direction
-              </CardTitle>
-              <CardDescription>Wind direction in degrees</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-primary">{windDirection}°</div>
-              <Slider
-                value={[windDirection]}
-                onValueChange={(val) => setWindDirection(val[0])}
-                min={0}
-                max={360}
-                step={1}
-              />
-              <Button
-                onClick={() => setActiveGraph("windDirection")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Quick graph buttons */}
+                <div className="pt-2 border-t border-border">
+                  <p className="text-[10px] text-muted-foreground mb-1.5">View History Graphs</p>
+                  <div className="grid grid-cols-2 gap-1">
+                    {Object.entries(graphMetaMap).map(([key, meta]) => (
+                      <Button key={key} onClick={() => setActiveGraph(key)} variant="outline" size="sm" className="text-[10px] h-7 px-2">
+                        <BarChart3 className="w-3 h-3 mr-1" />{meta.title}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
 
-          <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CloudRain className="w-5 h-5 text-blue-600" />
-                Total Rainfall
-              </CardTitle>
-              <CardDescription>Cumulative rainfall</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-blue-600">{totalRainfall} mm</div>
-              <Slider
-                value={[totalRainfall]}
-                onValueChange={(val) => setTotalRainfall(val[0])}
-                min={0}
-                max={500}
-                step={0.1}
-              />
-              <Button
-                onClick={() => setActiveGraph("totalRainfall")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
+                {/* Data tracking */}
+                <div className="text-center pt-2 border-t border-border">
+                  <p className="text-xs text-muted-foreground">{dataLog.length} data points logged</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card className="bg-cyan-50/50 dark:bg-cyan-950/20 border-cyan-200 dark:border-cyan-800">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CloudRain className="w-5 h-5 text-cyan-600" />
-                Today's Rainfall
-              </CardTitle>
-              <CardDescription>Rainfall today</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-cyan-600">{todayRainfall} mm</div>
-              <Slider
-                value={[todayRainfall]}
-                onValueChange={(val) => {
-                  setTodayRainfall(val[0]);
-                  applyEnvironmentalEffects("todayRainfall", val[0], {
-                    moisture,
-                    temperature,
-                    humidity,
-                    lightIntensity,
-                    solarRadiation,
-                    windSpeed,
-                    airPressure,
-                    todayRainfall: val[0],
-                  });
-                }}
-                min={0}
-                max={200}
-                step={0.1}
-              />
-              <Button
-                onClick={() => setActiveGraph("todayRainfall")}
-                variant="outline"
-                size="sm"
-                className="w-full gap-2"
-              >
-                <BarChart3 className="w-4 h-4" />
-                View Graph
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
+        {/* Graph Dialog */}
         <Dialog open={!!activeGraph} onOpenChange={(open) => { if (!open) setActiveGraph(null); }}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
-              <DialogTitle>
-                {activeGraph === "moisture" ? "Soil Moisture" :
-                activeGraph === "temperature" ? "Temperature" :
-                activeGraph === "humidity" ? "Humidity" :
-                activeGraph === "soilPh" ? "Soil pH" :
-                activeGraph === "lightIntensity" ? "Light Intensity" :
-                activeGraph === "airPressure" ? "Air Pressure" :
-                activeGraph === "solarRadiation" ? "Solar Radiation" :
-                activeGraph === "windSpeed" ? "Wind Speed" :
-                activeGraph === "windDirection" ? "Wind Direction" :
-                activeGraph === "totalRainfall" ? "Total Rainfall" :
-                "Today's Rainfall"} History
-              </DialogTitle>
+              <DialogTitle>{activeGraph && graphMetaMap[activeGraph]?.title} History</DialogTitle>
               <DialogDescription>Last 50 readings</DialogDescription>
             </DialogHeader>
-            {activeGraph && (
+            {activeGraph && graphMetaMap[activeGraph] && (
               <MetricGraph
-                title={
-                  activeGraph === "moisture" ? "Soil Moisture" :
-                  activeGraph === "temperature" ? "Temperature" :
-                  activeGraph === "humidity" ? "Humidity" :
-                  activeGraph === "soilPh" ? "Soil pH" :
-                  activeGraph === "lightIntensity" ? "Light Intensity" :
-                  activeGraph === "airPressure" ? "Air Pressure" :
-                  activeGraph === "solarRadiation" ? "Solar Radiation" :
-                  activeGraph === "windSpeed" ? "Wind Speed" :
-                  activeGraph === "windDirection" ? "Wind Direction" :
-                  activeGraph === "totalRainfall" ? "Total Rainfall" :
-                  "Today's Rainfall"
-                }
+                title={graphMetaMap[activeGraph].title}
                 data={getGraphData(activeGraph)}
-                unit={
-                  activeGraph === "moisture" ? "%" :
-                  activeGraph === "temperature" ? "°C" :
-                  activeGraph === "humidity" ? "%" :
-                  activeGraph === "soilPh" ? "pH" :
-                  activeGraph === "lightIntensity" ? "%" :
-                  activeGraph === "airPressure" ? "hPa" :
-                  activeGraph === "solarRadiation" ? "W/m²" :
-                  activeGraph === "windSpeed" ? "m/s" :
-                  activeGraph === "windDirection" ? "°" :
-                  activeGraph === "totalRainfall" ? "mm" :
-                  "mm"
-                }
-                color={
-                  activeGraph === "moisture" ? "#3b82f6" :
-                  activeGraph === "temperature" ? "#ef4444" :
-                  activeGraph === "humidity" ? "#06b6d4" :
-                  activeGraph === "soilPh" ? "#8b5cf6" :
-                  activeGraph === "lightIntensity" ? "#eab308" :
-                  activeGraph === "airPressure" ? "#a855f7" :
-                  activeGraph === "solarRadiation" ? "#f97316" :
-                  activeGraph === "windSpeed" ? "#14b8a6" :
-                  activeGraph === "windDirection" ? "#6366f1" :
-                  activeGraph === "totalRainfall" ? "#2563eb" :
-                  "#0891b2"
-                }
+                unit={graphMetaMap[activeGraph].unit}
+                color={graphMetaMap[activeGraph].color}
                 onClose={() => setActiveGraph(null)}
               />
             )}
           </DialogContent>
         </Dialog>
-
-        <Card className="border-2">
-          <CardHeader>
-            <CardTitle>🌾 3D Virtual Field Visualization</CardTitle>
-            <CardDescription>Interactive 3D field showing real-time environmental effects - Drag to rotate, scroll to zoom</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <VirtualField3D
-              moisture={moisture}
-              temperature={temperature}
-              soilPh={soilPh}
-              lightIntensity={lightIntensity}
-              humidity={humidity}
-              todayRainfall={todayRainfall}
-              totalRainfall={totalRainfall}
-              selectedCrop={selectedCrop}
-              currentWeek={currentWeek}
-              ripenessDay={ripenessDay}
-            />
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              <Button onClick={() => setActiveGraph("moisture")} variant="outline" size="sm" className="gap-2">
-                <Droplets className="w-4 h-4" />
-                Moisture Graph
-              </Button>
-              <Button onClick={() => setActiveGraph("temperature")} variant="outline" size="sm" className="gap-2">
-                <Thermometer className="w-4 h-4" />
-                Temperature Graph
-              </Button>
-              <Button onClick={() => setActiveGraph("humidity")} variant="outline" size="sm" className="gap-2">
-                <Wind className="w-4 h-4" />
-                Humidity Graph
-              </Button>
-              <Button onClick={() => setActiveGraph("soilPh")} variant="outline" size="sm" className="gap-2">
-                pH Graph
-              </Button>
-              <Button onClick={() => setActiveGraph("lightIntensity")} variant="outline" size="sm" className="gap-2">
-                <Sun className="w-4 h-4" />
-                Light Graph
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
 
         <PlantGrowthResults
           moisture={moisture}
@@ -957,7 +471,7 @@ const Dashboard = () => {
         {/* Crop Timeline Visualization */}
         <CropTimeline selectedCrop={selectedCrop} currentWeek={currentWeek} />
 
-        {/* Crop Ripeness Tracker - For all crops */}
+        {/* Crop Ripeness Tracker */}
         <CropRipeness
           selectedCrop={selectedCrop}
           temperature={temperature}
@@ -976,7 +490,6 @@ const Dashboard = () => {
           soilPh={soilPh}
           lightIntensity={lightIntensity}
         />
-
 
         <Card className="mb-8 animate-fade-in">
           <CardHeader>
@@ -1007,20 +520,8 @@ const Dashboard = () => {
                   formatter={(value: number, name: string) => [`${value}%`, name]}
                 />
                 <Legend />
-                <Bar 
-                  dataKey="manual" 
-                  fill="hsl(210, 60%, 55%)" 
-                  name="Manual Scheduling" 
-                  radius={[4, 4, 0, 0]}
-                  label={{ position: 'top', formatter: (v: number) => `${v}%`, fill: 'hsl(210, 60%, 55%)', fontSize: 12, fontWeight: 'bold' }}
-                />
-                <Bar 
-                  dataKey="digitalTwin" 
-                  fill="hsl(120, 50%, 55%)" 
-                  name="Digital Twin" 
-                  radius={[4, 4, 0, 0]}
-                  label={{ position: 'top', formatter: (v: number) => `${v}%`, fill: 'hsl(120, 50%, 55%)', fontSize: 12, fontWeight: 'bold' }}
-                />
+                <Bar dataKey="manual" fill="hsl(210, 60%, 55%)" name="Manual Scheduling" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (v: number) => `${v}%`, fill: 'hsl(210, 60%, 55%)', fontSize: 12, fontWeight: 'bold' }} />
+                <Bar dataKey="digitalTwin" fill="hsl(120, 50%, 55%)" name="Digital Twin" radius={[4, 4, 0, 0]} label={{ position: 'top', formatter: (v: number) => `${v}%`, fill: 'hsl(120, 50%, 55%)', fontSize: 12, fontWeight: 'bold' }} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -1039,26 +540,10 @@ const Dashboard = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="week" stroke="hsl(var(--foreground))" />
                   <YAxis stroke="hsl(var(--foreground))" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--card))', 
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px',
-                    }}
-                  />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px' }} />
                   <Legend />
-                  <Bar 
-                    dataKey="projected" 
-                    fill="hsl(var(--primary))" 
-                    name="Projected" 
-                    radius={[8, 8, 0, 0]}
-                  />
-                  <Bar 
-                    dataKey="optimal" 
-                    fill="hsl(var(--accent))" 
-                    name="Optimal" 
-                    radius={[8, 8, 0, 0]}
-                  />
+                  <Bar dataKey="projected" fill="hsl(var(--primary))" name="Projected" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="optimal" fill="hsl(var(--accent))" name="Optimal" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -1086,8 +571,8 @@ const Dashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">{totalRainfall}mm</p>
-                <p className="text-sm text-muted-foreground">Total rainfall</p>
+                <p className="text-2xl font-bold">{rainfall}mm</p>
+                <p className="text-sm text-muted-foreground">Current rainfall</p>
               </CardContent>
             </Card>
 
@@ -1099,8 +584,8 @@ const Dashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">Flowering</p>
-                <p className="text-sm text-muted-foreground">Peak growth phase</p>
+                <p className="text-2xl font-bold">{currentStage?.name || "Flowering"}</p>
+                <p className="text-sm text-muted-foreground">Current phase</p>
               </CardContent>
             </Card>
           </div>
@@ -1139,20 +624,13 @@ const Dashboard = () => {
                 style={{ animationDelay: `${idx * 100}ms` }}
               >
                 <div className="h-48 overflow-hidden">
-                  <img 
-                    src={crop.image} 
-                    alt={crop.name}
-                    className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
-                  />
+                  <img src={crop.image} alt={crop.name} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
                 </div>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold">{crop.name}</h3>
-                    <Badge variant={crop.status === "Excellent" ? "default" : "secondary"}>
-                      {crop.status}
-                    </Badge>
+                    <Badge variant={crop.status === "Excellent" ? "default" : "secondary"}>{crop.status}</Badge>
                   </div>
-                  
                   <div className="space-y-4">
                     <div>
                       <div className="flex justify-between text-sm mb-2">
@@ -1161,7 +639,6 @@ const Dashboard = () => {
                       </div>
                       <Progress value={crop.health} className="h-2" />
                     </div>
-                    
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Expected Yield</span>
@@ -1191,9 +668,7 @@ const Dashboard = () => {
           <CardContent>
             <div className="grid gap-3">
               {getFieldEffect().map((effect, idx) => (
-                <div key={idx} className="p-3 bg-muted rounded-lg text-sm font-medium">
-                  {effect}
-                </div>
+                <div key={idx} className="p-3 bg-muted rounded-lg text-sm font-medium">{effect}</div>
               ))}
             </div>
           </CardContent>
@@ -1212,7 +687,6 @@ const Dashboard = () => {
             selectedCrop={selectedCrop}
             currentWeek={currentWeek}
           />
-          
         </div>
       </div>
 
