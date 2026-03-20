@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Download, Droplets, Thermometer, Wind, Sun, CloudRain, Zap, BarChart3, Sprout, TrendingUp, Calendar, Leaf } from "lucide-react";
+import { Download, Droplets, Thermometer, Wind, Sun, CloudRain, Zap, BarChart3, Sprout, TrendingUp, Calendar, Leaf, RotateCcw } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +55,17 @@ const Dashboard = () => {
   const [selectedCrop, setSelectedCrop] = useState("tomato");
   const [currentWeek, setCurrentWeek] = useState(1);
   const [ripenessDay, setRipenessDay] = useState(0);
+
+  const resetSensors = () => {
+    setMoisture(45);
+    setTemperature(28);
+    setHumidity(65);
+    setSoilPh(6.5);
+    setLightIntensity(70);
+    setSolarRadiation(149);
+    setRainfall(12);
+    toast({ title: "Sensors Reset", description: "All parameters restored to optimal defaults." });
+  };
 
   const crop = CROP_DATA[selectedCrop];
   const currentStage = getCurrentStage(selectedCrop, currentWeek);
@@ -354,9 +365,18 @@ const Dashboard = () => {
                   <h3 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5" /> Sensor Controls
                   </h3>
-                  <Badge variant="outline" className="text-[10px] h-5 border-primary/30 text-primary">
-                    Live
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={resetSensors}
+                      className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors px-1.5 py-0.5 rounded hover:bg-primary/10"
+                      title="Reset all to defaults"
+                    >
+                      <RotateCcw className="w-3 h-3" /> Reset
+                    </button>
+                    <Badge variant="outline" className="text-[10px] h-5 border-primary/30 text-primary">
+                      Live
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Sensor Cards */}
