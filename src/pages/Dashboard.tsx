@@ -365,9 +365,18 @@ const Dashboard = () => {
                   <h3 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5" /> Sensor Controls
                   </h3>
-                  <Badge variant="outline" className="text-[10px] h-5 border-primary/30 text-primary">
-                    Live
-                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={resetSensors}
+                      className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-primary transition-colors px-1.5 py-0.5 rounded hover:bg-primary/10"
+                      title="Reset all to defaults"
+                    >
+                      <RotateCcw className="w-3 h-3" /> Reset
+                    </button>
+                    <Badge variant="outline" className="text-[10px] h-5 border-primary/30 text-primary">
+                      Live
+                    </Badge>
+                  </div>
                 </div>
 
                 {/* Sensor Cards */}
