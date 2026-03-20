@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Download, Droplets, Thermometer, Wind, Sun, CloudRain, Zap, BarChart3, Sprout, TrendingUp, Calendar, Leaf } from "lucide-react";
+import { Download, Droplets, Thermometer, Wind, Sun, CloudRain, Zap, BarChart3, Sprout, TrendingUp, Calendar, Leaf, RotateCcw } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import * as XLSX from "xlsx";
 import { useToast } from "@/hooks/use-toast";
