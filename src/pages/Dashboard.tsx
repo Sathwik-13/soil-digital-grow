@@ -56,6 +56,17 @@ const Dashboard = () => {
   const [currentWeek, setCurrentWeek] = useState(1);
   const [ripenessDay, setRipenessDay] = useState(0);
 
+  const resetSensors = () => {
+    setMoisture(45);
+    setTemperature(28);
+    setHumidity(65);
+    setSoilPh(6.5);
+    setLightIntensity(70);
+    setSolarRadiation(149);
+    setRainfall(12);
+    toast({ title: "Sensors Reset", description: "All parameters restored to optimal defaults." });
+  };
+
   const crop = CROP_DATA[selectedCrop];
   const currentStage = getCurrentStage(selectedCrop, currentWeek);
   const cropImages: Record<string, string> = { tomato: tomatoImage, chili: chiliImage, brinjal: brinjalImage };
